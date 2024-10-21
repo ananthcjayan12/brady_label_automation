@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1 class="mb-4">Welcome to the Barcode Scanning System</h1>
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <a href="{% url 'first_stage' %}" class="btn btn-primary btn-lg btn-block">First Stage</a>
+    </div>
+    <div class="col-md-6 mb-3">
+        <a href="{% url 'second_stage' %}" class="btn btn-secondary btn-lg btn-block">Second Stage</a>
+    </div>
+</div>
+{% endblock %}

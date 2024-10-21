@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1 class="mb-4">Second Stage</h1>
+<div id="scanner-container">
+    <input type="text" id="barcode-input" class="form-control" placeholder="Scan barcode here" autofocus>
+</div>
+<div id="result-container" class="mt-4">
+    <p>Scanned Barcode: <span id="scanned-result"></span></p>
+    <p>Serial Number: <span id="serial-number"></span></p>
+    <p>IMEI Number: <span id="imei-number"></span></p>
+    <p>Unique Number: <span id="unique-number"></span></p>
+</div>
+<button id="print-button" class="btn btn-primary mt-3" disabled>Print Label</button>
+<div id="preview-container" class="mt-4"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.body.dataset.stage = 'second-stage';
+</script>
+{% endblock %}
