@@ -19,6 +19,18 @@ from django.db.models import Count
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.db import IntegrityError
+from reportlab.lib.pagesizes import mm
+from reportlab.graphics.barcode import code128
+from reportlab.platypus import SimpleDocTemplate, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import mm
+from io import BytesIO
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+# Register Arial font
+pdfmetrics.registerFont(TTFont('Arial', 'Arial.ttf'))
 
 # Assuming the Excel file is in the same directory as manage.py
 EXCEL_FILE_PATH = 'barcode_data.xlsx'
@@ -173,7 +185,7 @@ def process_second_stage(barcode):
             label.imei_number = str(data.get('CELL_Info.imei', 'N/A')).strip()
             label.save()
 
-        label_content, label_pdf_base64 = generate_second_stage_label(stripped_barcode, data)
+        label_content, label_pdf_base64 = generate_second_stage_label(label.serial_number, data)
         
         return {
             'success': True,
@@ -190,61 +202,71 @@ def process_second_stage(barcode):
 
 def generate_first_stage_label(barcode):
     buffer = BytesIO()
-    p = canvas.Canvas(buffer, pagesize=(100*mm, 100*mm))
     
-    # Add barcode
-    qr = QrCodeWidget(barcode)
-    bounds = qr.getBounds()
-    width = bounds[2] - bounds[0]
-    height = bounds[3] - bounds[1]
-    d = Drawing(45*mm, 45*mm, transform=[45*mm/width,0,0,45*mm/height,0,0])
-    d.add(qr)
-    renderPDF.draw(d, p, 15*mm, 40*mm)
-
-    # Add text
-    p.setFont("Helvetica", 12)
-    p.drawString(15*mm, 30*mm, f"Barcode: {barcode}")
-
-    p.showPage()
-    p.save()
-
-    pdf_bytes = buffer.getvalue()
-    pdf_base64 = base64.b64encode(pdf_bytes).decode()
-
+    # Create the PDF object, using BytesIO as its "file."
+    c = canvas.Canvas(buffer, pagesize=(19.05*mm, 6.35*mm))
+    
+    # Leave space for the title (about 1/3 of the label height)
+    usable_height = 4.23*mm  # 2/3 of 6.35mm
+    
+    # Generate and draw the barcode
+    barcode_height = usable_height * 0.7  # 70% of usable height for barcode
+    barcode_obj = code128.Code128(barcode, barWidth=0.15*mm, barHeight=barcode_height)
+    barcode_width = barcode_obj.width
+    barcode_x = (19.05*mm - barcode_width) / 2  # Center the barcode horizontally
+    barcode_y = 6.35*mm - usable_height  # Position at the bottom of usable area
+    barcode_obj.drawOn(c, barcode_x, barcode_y)
+    
+    # Draw the barcode number
+    c.setFont("Arial", 4)  # Set font to Arial, size 6
+    text_width = c.stringWidth(barcode, "Arial", 4)
+    text_x = (19.05*mm - text_width) / 2  # Center the text horizontally
+    c.drawString(text_x, 0.5*mm, barcode)
+    
+    # Close the PDF object cleanly, and we're done.
+    c.showPage()
+    c.save()
+    
+    # Get the value of the BytesIO buffer and encode it to base64
+    pdf = buffer.getvalue()
+    buffer.close()
+    pdf_base64 = base64.b64encode(pdf).decode()
+    
     return f"Barcode: {barcode}", f"data:application/pdf;base64,{pdf_base64}"
 
-def generate_second_stage_label(barcode, data):
+def generate_second_stage_label(serial_number, data):
     buffer = BytesIO()
-    p = canvas.Canvas(buffer, pagesize=(100*mm, 100*mm))
     
-    # Add barcode
-    qr = QrCodeWidget(barcode)
-    bounds = qr.getBounds()
-    width = bounds[2] - bounds[0]
-    height = bounds[3] - bounds[1]
-    d = Drawing(45*mm, 45*mm, transform=[45*mm/width,0,0,45*mm/height,0,0])
-    d.add(qr)
-    renderPDF.draw(d, p, 15*mm, 40*mm)
-
-    # Add text
-    p.setFont("Helvetica", 10)
-    p.drawString(15*mm, 30*mm, f"Barcode: {barcode}")
-    p.drawString(15*mm, 25*mm, f"Serial: {str(data.get('sr_number', 'N/A')).strip()}")
-    p.drawString(15*mm, 20*mm, f"IMEI: {str(data.get('CELL_Info.imei', 'N/A')).strip()}")
-
-    p.showPage()
-    p.save()
-
-    pdf_bytes = buffer.getvalue()
-    pdf_base64 = base64.b64encode(pdf_bytes).decode()
-
-    label_content = f"""
-    Barcode: {barcode}
-    Serial Number: {str(data.get('sr_number', 'N/A')).strip()}
-    IMEI Number: {str(data.get('CELL_Info.imei', 'N/A')).strip()}
-    """
-
-    return label_content, f"data:application/pdf;base64,{pdf_base64}"
+    # Create the PDF object, using BytesIO as its "file."
+    c = canvas.Canvas(buffer, pagesize=(100*mm, 25*mm))
+    
+    # Set font to Arial and size to 6px (approximately 4.5 points)
+    c.setFont("Arial", 4.5)
+    
+    # Draw the SN
+    sn_x = 41.7*mm
+    sn_y = (25-3)*mm
+    c.drawString(sn_x, sn_y, f"{serial_number}")
+    
+    # Generate and draw the barcode
+    barcode = code128.Code128(serial_number, barWidth=0.26*mm, barHeight=7*mm)
+    barcode_y = 13*mm  # Positioned just below SN
+    barcode.drawOn(c, 30.7*mm, barcode_y)  # Use the same x-coordinate as SN
+    
+    # Draw the IMEI
+    imei_number = str(data.get('CELL_Info.imei', 'N/A')).strip()
+    c.drawString(13.4*mm, (25-19.3)*mm, f"{imei_number}")
+    
+    # Close the PDF object cleanly, and we're done.
+    c.showPage()
+    c.save()
+    
+    # Get the value of the BytesIO buffer and encode it to base64
+    pdf = buffer.getvalue()
+    buffer.close()
+    pdf_base64 = base64.b64encode(pdf).decode()
+    
+    return f"SN: {serial_number}, IMEI: {imei_number}", f"data:application/pdf;base64,{pdf_base64}"
 
 def print_label(label_pdf_base64, user):
     try:
@@ -352,3 +374,4 @@ def reprint_label(request, label_id):
             'success': False,
             'error': str(e)
         }, status=500)
+
