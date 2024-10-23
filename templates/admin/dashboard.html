@@ -1,0 +1,44 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" type="text/css" href="{% static "admin/css/dashboard.css" %}">{% endblock %}
+
+{% block coltype %}colMS{% endblock %}
+
+{% block bodyclass %}{{ block.super }} dashboard{% endblock %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>Label Dashboard</h1>
+    <div class="module">
+        <h2>Label Statistics</h2>
+        <ul>
+            <li>Total Labels: {{ total_labels }}</li>
+            <li>Printed Labels: {{ printed_labels }}</li>
+            <li>First Stage Labels: {{ first_stage_labels }}</li>
+            <li>Second Stage Labels: {{ second_stage_labels }}</li>
+        </ul>
+    </div>
+    <div class="module">
+        <h2>Labels Created by Day (Last 7 Days)</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for day in labels_by_day %}
+                <tr>
+                    <td>{{ day.day }}</td>
+                    <td>{{ day.count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

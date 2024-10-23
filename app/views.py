@@ -13,6 +13,12 @@ import pandas as pd
 import os
 import cups
 import tempfile
+from django.utils import timezone
+from .models import Label
+from django.db.models import Count
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
+from django.db import IntegrityError
 
 # Assuming the Excel file is in the same directory as manage.py
 EXCEL_FILE_PATH = 'barcode_data.xlsx'
@@ -27,6 +33,25 @@ class FirstStageView(TemplateView):
 
 class SecondStageView(TemplateView):
     template_name = 'second_stage.html'
+
+@method_decorator(login_required, name='dispatch')
+class DashboardView(TemplateView):
+    template_name = 'dashboard.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['total_labels'] = Label.objects.count()
+        context['printed_labels'] = Label.objects.filter(is_printed=True).count()
+        context['first_stage_labels'] = Label.objects.filter(stage='first').count()
+        context['second_stage_labels'] = Label.objects.filter(stage='second').count()
+
+        context['labels_by_day'] = Label.objects.extra(
+            select={'day': 'date(created_at)'}
+        ).values('day').annotate(count=Count('id')).order_by('-day')[:7]
+
+        context['recent_labels'] = Label.objects.order_by('-created_at')[:10]
+
+        return context
 
 def excel_lookup(request):
     serial_number = request.GET.get('serial_number', '')
@@ -66,6 +91,7 @@ def update_print_status(request):
     except Exception as e:
         return JsonResponse({'error': f'An error occurred: {str(e)}'}, status=500)
 
+@login_required
 def process_barcode(request):
     scanned_barcode = request.POST.get('barcode', '')
     stage = request.POST.get('stage', '')
@@ -79,64 +105,83 @@ def process_barcode(request):
         return JsonResponse({'error': 'Invalid stage'}, status=400)
 
     if should_print and response_data.get('success', False):
-        print_success, print_message = print_label(response_data.get('label_pdf', ''))
+        print_success, print_message = print_label(response_data.get('label_pdf', ''), request.user)
         response_data['print_success'] = print_success
         response_data['print_message'] = print_message
 
     return JsonResponse(response_data)
 
 def process_first_stage(barcode):
-    label_content, label_pdf_base64 = generate_first_stage_label(barcode)
-    return {
-        'success': True,
-        'message': 'Label generated successfully',
-        'label_content': label_content,
-        'label_pdf': label_pdf_base64,
-        'barcode': barcode  # Add this line to include the barcode in the response
-    }
+    try:
+        label, created = Label.objects.get_or_create(
+            barcode=barcode,
+            defaults={'stage': 'first'}
+        )
+        label_content, label_pdf_base64 = generate_first_stage_label(barcode)
+        return {
+            'success': True,
+            'message': 'Label generated successfully',
+            'label_content': label_content,
+            'label_pdf': label_pdf_base64,
+            'barcode': barcode
+        }
+    except IntegrityError:
+        return {
+            'success': False,
+            'error': 'A label with this barcode already exists',
+            'barcode': barcode
+        }
 
 def process_second_stage(barcode):
     try:
-        # Read the Excel file, treating NA values in 'Is Printed' column as False
+        # Read the Excel file
         df = pd.read_excel(EXCEL_FILE_PATH, dtype={
-            'Serial Number': str, 
-            'IMEI Number': str, 
-            'Unique Number': str
+            'barcode_number': str, 
+            'sr_number': str, 
+            'CELL_Info.imei': str
         }, na_values=['NA'], keep_default_na=False)
         
-        # Fill NA values in 'Is Printed' column with False
-        if 'Is Printed' in df.columns:
-            df['Is Printed'] = df['Is Printed'].fillna(False)
-        else:
-            df['Is Printed'] = False
-
-        if 'Serial Number' not in df.columns:
-            return {'error': 'Serial Number column not found in Excel', 'success': False}
+        # Ensure required columns exist
+        required_columns = ['barcode_number', 'sr_number', 'CELL_Info.imei']
+        for column in required_columns:
+            if column not in df.columns:
+                return {'error': f'{column} column not found in Excel', 'success': False}
         
         # Strip leading and trailing spaces from the input barcode
         stripped_barcode = barcode.strip()
         
-        # Strip spaces from 'Serial Number' column and compare with stripped barcode
-        data = df[df['Serial Number'].str.strip() == stripped_barcode]
+        # Find the row with matching barcode_number
+        data = df[df['barcode_number'].str.strip() == stripped_barcode]
         
         if data.empty:
             return {'error': 'Barcode not found in Excel', 'success': False}
         
         data = data.iloc[0]
-        label_content, label_pdf_base64 = generate_second_stage_label(stripped_barcode, data)
         
-        # Update the 'Is Printed' status in the Excel file
-        df.loc[df['Serial Number'].str.strip() == stripped_barcode, 'Is Printed'] = True
-        df.to_excel(EXCEL_FILE_PATH, index=False)
+        label, created = Label.objects.get_or_create(
+            barcode=stripped_barcode,
+            defaults={
+                'stage': 'second',
+                'serial_number': str(data.get('sr_number', 'N/A')).strip(),
+                'imei_number': str(data.get('CELL_Info.imei', 'N/A')).strip(),
+            }
+        )
+
+        if not created:
+            # Update existing label if it wasn't just created
+            label.serial_number = str(data.get('sr_number', 'N/A')).strip()
+            label.imei_number = str(data.get('CELL_Info.imei', 'N/A')).strip()
+            label.save()
+
+        label_content, label_pdf_base64 = generate_second_stage_label(stripped_barcode, data)
         
         return {
             'success': True,
             'message': 'Label generated successfully',
             'label_content': label_content,
             'label_pdf': label_pdf_base64,
-            'serial_number': str(data.get('Serial Number', 'N/A')).strip(),
-            'imei_number': str(data.get('IMEI Number', 'N/A')).strip(),
-            'unique_number': str(data.get('Unique Number', 'N/A')).strip()
+            'serial_number': label.serial_number,
+            'imei_number': label.imei_number,
         }
     except FileNotFoundError:
         return {'error': 'Excel file not found', 'success': False}
@@ -184,9 +229,8 @@ def generate_second_stage_label(barcode, data):
     # Add text
     p.setFont("Helvetica", 10)
     p.drawString(15*mm, 30*mm, f"Barcode: {barcode}")
-    p.drawString(15*mm, 25*mm, f"Serial: {str(data.get('Serial Number', 'N/A')).strip()}")
-    p.drawString(15*mm, 20*mm, f"IMEI: {str(data.get('IMEI Number', 'N/A')).strip()}")
-    p.drawString(15*mm, 15*mm, f"Unique: {str(data.get('Unique Number', 'N/A')).strip()}")
+    p.drawString(15*mm, 25*mm, f"Serial: {str(data.get('sr_number', 'N/A')).strip()}")
+    p.drawString(15*mm, 20*mm, f"IMEI: {str(data.get('CELL_Info.imei', 'N/A')).strip()}")
 
     p.showPage()
     p.save()
@@ -196,14 +240,13 @@ def generate_second_stage_label(barcode, data):
 
     label_content = f"""
     Barcode: {barcode}
-    Serial Number: {str(data.get('Serial Number', 'N/A')).strip()}
-    IMEI Number: {str(data.get('IMEI Number', 'N/A')).strip()}
-    Unique Number: {str(data.get('Unique Number', 'N/A')).strip()}
+    Serial Number: {str(data.get('sr_number', 'N/A')).strip()}
+    IMEI Number: {str(data.get('CELL_Info.imei', 'N/A')).strip()}
     """
 
     return label_content, f"data:application/pdf;base64,{pdf_base64}"
 
-def print_label(label_pdf_base64):
+def print_label(label_pdf_base64, user):
     try:
         # Remove the data:application/pdf;base64, prefix
         pdf_data = base64.b64decode(label_pdf_base64.split(',')[1])
@@ -238,6 +281,74 @@ def print_label(label_pdf_base64):
         # Clean up the temporary file
         os.unlink(temp_file_path)
 
+        # Update the label's print status and user in the database
+        label = Label.objects.get(barcode=barcode)
+        label.is_printed = True
+        label.printed_at = timezone.now()
+        label.printed_by = user
+        label.save()
+
         return True, f"Print job sent successfully. Job ID: {job_id}"
     except Exception as e:
         return False, f"Error printing label: {str(e)}"
+
+@login_required
+def preview_label(request, label_id):
+    try:
+        label = Label.objects.get(id=label_id)
+        if label.stage == 'first':
+            label_content, label_pdf_base64 = generate_first_stage_label(label.barcode)
+        else:
+            # For second stage, we need to fetch data from Excel
+            df = pd.read_excel(EXCEL_FILE_PATH)
+            data = df[df['Serial Number'] == label.barcode].iloc[0]
+            label_content, label_pdf_base64 = generate_second_stage_label(label.barcode, data)
+        
+        return JsonResponse({
+            'success': True,
+            'label_pdf': label_pdf_base64
+        })
+    except Label.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Label not found'
+        }, status=404)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+@login_required
+def reprint_label(request, label_id):
+    try:
+        label = Label.objects.get(id=label_id)
+        if label.stage == 'first':
+            label_content, label_pdf_base64 = generate_first_stage_label(label.barcode)
+        else:
+            # For second stage, we need to fetch data from Excel
+            df = pd.read_excel(EXCEL_FILE_PATH)
+            data = df[df['Serial Number'] == label.barcode].iloc[0]
+            label_content, label_pdf_base64 = generate_second_stage_label(label.barcode, data)
+        
+        print_success, print_message = print_label(label_pdf_base64, request.user)
+        
+        if print_success:
+            label.is_printed = True
+            label.printed_at = timezone.now()
+            label.save()
+        
+        return JsonResponse({
+            'success': print_success,
+            'message': print_message
+        })
+    except Label.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Label not found'
+        }, status=404)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
