@@ -117,7 +117,7 @@ def process_barcode(request):
         return JsonResponse({'error': 'Invalid stage'}, status=400)
 
     if should_print and response_data.get('success', False):
-        print_success, print_message = print_label(response_data.get('label_pdf', ''), request.user)
+        print_success, print_message = print_label(response_data.get('label_pdf', ''), request.user, scanned_barcode)
         response_data['print_success'] = print_success
         response_data['print_message'] = print_message
 
@@ -268,7 +268,7 @@ def generate_second_stage_label(serial_number, data):
     
     return f"SN: {serial_number}, IMEI: {imei_number}", f"data:application/pdf;base64,{pdf_base64}"
 
-def print_label(label_pdf_base64, user):
+def print_label(label_pdf_base64, user, barcode):
     try:
         # Remove the data:application/pdf;base64, prefix
         pdf_data = base64.b64decode(label_pdf_base64.split(',')[1])
@@ -292,7 +292,7 @@ def print_label(label_pdf_base64, user):
             default_printer = list(printers.keys())[0]
 
         # Print 2 copies
-        copies = 2
+        copies = 1
         print_options = {
             "copies": str(copies)
         }
@@ -322,9 +322,23 @@ def preview_label(request, label_id):
             label_content, label_pdf_base64 = generate_first_stage_label(label.barcode)
         else:
             # For second stage, we need to fetch data from Excel
-            df = pd.read_excel(EXCEL_FILE_PATH)
-            data = df[df['Serial Number'] == label.barcode].iloc[0]
-            label_content, label_pdf_base64 = generate_second_stage_label(label.barcode, data)
+            df = pd.read_excel(EXCEL_FILE_PATH, dtype={
+                'barcode_number': str, 
+                'sr_number': str, 
+                'CELL_Info.imei': str
+            }, na_values=['NA'], keep_default_na=False)
+            
+            # Find the row with matching barcode_number
+            data = df[df['barcode_number'].str.strip() == label.barcode.strip()]
+            
+            if data.empty:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Barcode not found in Excel'
+                }, status=404)
+            
+            data = data.iloc[0]
+            label_content, label_pdf_base64 = generate_second_stage_label(label.serial_number, data)
         
         return JsonResponse({
             'success': True,
@@ -349,15 +363,30 @@ def reprint_label(request, label_id):
             label_content, label_pdf_base64 = generate_first_stage_label(label.barcode)
         else:
             # For second stage, we need to fetch data from Excel
-            df = pd.read_excel(EXCEL_FILE_PATH)
-            data = df[df['Serial Number'] == label.barcode].iloc[0]
-            label_content, label_pdf_base64 = generate_second_stage_label(label.barcode, data)
+            df = pd.read_excel(EXCEL_FILE_PATH, dtype={
+                'barcode_number': str, 
+                'sr_number': str, 
+                'CELL_Info.imei': str
+            }, na_values=['NA'], keep_default_na=False)
+            
+            # Find the row with matching barcode_number
+            data = df[df['barcode_number'].str.strip() == label.barcode.strip()]
+            
+            if data.empty:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Barcode not found in Excel'
+                }, status=404)
+            
+            data = data.iloc[0]
+            label_content, label_pdf_base64 = generate_second_stage_label(label.serial_number, data)
         
-        print_success, print_message = print_label(label_pdf_base64, request.user)
+        print_success, print_message = print_label(label_pdf_base64, request.user, label.barcode)
         
         if print_success:
             label.is_printed = True
             label.printed_at = timezone.now()
+            label.printed_by = request.user
             label.save()
         
         return JsonResponse({
@@ -374,4 +403,3 @@ def reprint_label(request, label_id):
             'success': False,
             'error': str(e)
         }, status=500)
-
