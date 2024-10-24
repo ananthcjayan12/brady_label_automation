@@ -29,6 +29,9 @@ from io import BytesIO
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from django.conf import settings
+from django.contrib.auth.forms import UserCreationForm
+from django.urls import reverse_lazy
+from django.views.generic.edit import CreateView
 
 # Register Arial font
 font_path = os.path.join(settings.STATIC_ROOT, 'fonts', 'Arial.ttf')
@@ -406,3 +409,7 @@ def reprint_label(request, label_id):
             'error': str(e)
         }, status=500)
 
+class SignUpView(CreateView):
+    form_class = UserCreationForm
+    success_url = reverse_lazy('login')
+    template_name = 'signup.html'
