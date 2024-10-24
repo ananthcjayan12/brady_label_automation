@@ -1,0 +1,9 @@
+/* Add your custom styles here */
+body {
+    font-family: Arial, sans-serif;
+}
+
+.btn-block {
+    display: block;
+    width: 100%;
+}

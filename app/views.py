@@ -28,9 +28,11 @@ from reportlab.lib.units import mm
 from io import BytesIO
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from django.conf import settings
 
 # Register Arial font
-pdfmetrics.registerFont(TTFont('Arial', 'Arial.ttf'))
+font_path = os.path.join(settings.STATIC_ROOT, 'fonts', 'Arial.ttf')
+pdfmetrics.registerFont(TTFont('Arial', font_path))
 
 # Assuming the Excel file is in the same directory as manage.py
 EXCEL_FILE_PATH = 'barcode_data.xlsx'
@@ -403,3 +405,4 @@ def reprint_label(request, label_id):
             'success': False,
             'error': str(e)
         }, status=500)
+
