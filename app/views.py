@@ -166,6 +166,7 @@ def process_second_stage(request):
         email = request.POST.get('email', '')
         logo = request.FILES.get('logo')
         fc_logo = request.FILES.get('fc_logo')
+        font_size = float(request.POST.get('font_size', 4.5))  # Get font size, default to 4.5 if not provided
 
         logger.debug(f"Excel file path: {EXCEL_FILE_PATH}")
         logger.debug(f"Excel file exists: {os.path.exists(EXCEL_FILE_PATH)}")
@@ -217,7 +218,8 @@ def process_second_stage(request):
             fcc_id, 
             email, 
             logo, 
-            fc_logo
+            fc_logo,
+            font_size  # Pass font size to the label generation function
         )
         
         return {
@@ -269,14 +271,14 @@ def generate_first_stage_label(barcode):
     
     return f"Barcode: {barcode}", f"data:application/pdf;base64,{pdf_base64}"
 
-def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email, logo, fc_logo):
+def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email, logo, fc_logo, font_size):
     buffer = BytesIO()
     
     # Create the PDF object, using BytesIO as its "file."
     c = canvas.Canvas(buffer, pagesize=(100*mm, 25*mm))
     
-    # Set font to Arial and size to 6px (approximately 4.5 points)
-    c.setFont("Arial", 4.5)
+    # Set font to Arial and use the provided font size
+    c.setFont("Arial", font_size)
     
     # Draw the logo if provided
     if logo:
@@ -297,27 +299,27 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
 
     # Draw the model and FCC ID
     # Draw the Model
-    c.setFont("ArialBold", 4.5)
+    c.setFont("ArialBold", font_size)
     c.drawString(8.1*mm, 10*mm, "Model: ")
-    c.setFont("Arial", 4.5)
-    c.drawString(8.1*mm + c.stringWidth("Model: ", "ArialBold", 4.5), 10*mm, model)
+    c.setFont("Arial", font_size)
+    c.drawString(8.1*mm + c.stringWidth("Model: ", "ArialBold", font_size), 10*mm, model)
 
     # Draw the FCC ID
-    c.setFont("ArialBold", 4.5)
+    c.setFont("ArialBold", font_size)
     c.drawString(8.1*mm, 7*mm, "FCC ID: ")
-    c.setFont("Arial", 4.5)
-    c.drawString(8.1*mm + c.stringWidth("FCC ID: ", "ArialBold", 4.5), 7*mm, fcc_id)
+    c.setFont("Arial", font_size)
+    c.drawString(8.1*mm + c.stringWidth("FCC ID: ", "ArialBold", font_size), 7*mm, fcc_id)
 
     # Draw the IMEI
-    c.setFont("ArialBold", 4.5)
+    c.setFont("ArialBold", font_size)
     c.drawString(8.1*mm, 4*mm, "IMEI: ")
-    c.setFont("Arial", 4.5)
-    c.drawString(8.1*mm + c.stringWidth("IMEI: ", "ArialBold", 4.5), 4*mm, imei_number)
+    c.setFont("Arial", font_size)
+    c.drawString(8.1*mm + c.stringWidth("IMEI: ", "ArialBold", font_size), 4*mm, imei_number)
 
     # Draw the SN (prepared for the next line)
-    c.setFont("ArialBold", 4.5)
+    c.setFont("ArialBold", font_size)
     c.drawString(38.7*mm, 23*mm, "SN: ")
-    c.setFont("Arial", 4.5)  # Set font back to Arial, size 6
+    c.setFont("Arial", font_size)  # Set font back to Arial, size 6
     c.drawString(38.7*mm, 23*mm, f"SN: {serial_number}")
     
     # Generate and draw the barcode
