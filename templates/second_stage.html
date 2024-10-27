@@ -8,7 +8,20 @@
     <h1 class="text-3xl font-bold text-gray-900 mb-6">Second Stage Label Generation</h1>
     <div class="bg-white shadow-lg rounded-lg overflow-hidden">
         <div class="px-4 py-5 sm:p-6">
-            <form id="barcode-form" class="space-y-6">
+            <form id="barcode-form" class="space-y-6" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div>
+                    <label for="logo-upload" class="block text-sm font-medium text-gray-700">Upload Logo (10x20)</label>
+                    <input type="file" id="logo-upload" name="logo" accept="image/*" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                </div>
+                <div>
+                    <label for="model-input" class="block text-sm font-medium text-gray-700">Model</label>
+                    <input type="text" id="model-input" name="model" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                </div>
+                <div>
+                    <label for="fcc-id-input" class="block text-sm font-medium text-gray-700">FCC ID</label>
+                    <input type="text" id="fcc-id-input" name="fcc_id" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                </div>
                 <div>
                     <label for="barcode-input" class="block text-sm font-medium text-gray-700">Scan Barcode</label>
                     <div class="mt-1 relative rounded-md shadow-sm border border-gray-300 focus-within:ring-1 focus-within:ring-primary focus-within:border-primary">
@@ -21,6 +34,14 @@
                     </div>
                 </div>
                 <div>
+                    <label for="email-input" class="block text-sm font-medium text-gray-700">Email</label>
+                    <input type="email" id="email-input" name="email" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                </div>
+                <div>
+                    <label for="fc-logo-upload" class="block text-sm font-medium text-gray-700">Upload FC Logo (10x10)</label>
+                    <input type="file" id="fc-logo-upload" name="fc_logo" accept="image/*" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                </div>
+                <div>
                     <button type="submit" id="generate-btn" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
                         Generate Label
                     </button>
@@ -30,7 +51,7 @@
             <div id="result-container" class="mt-8 hidden">
                 <h2 class="text-lg font-medium text-gray-900 mb-4">Generated Label</h2>
                 <div class="bg-gray-100 p-4 rounded-md mb-4 border border-gray-300">
-                    <p class="text-sm text-gray-600">Serial Number: <span id="serial-number" class="font-medium text-gray-900"></span></p>
+                    <p class="text-sm text-gray-600">SN: <span id="serial-number" class="font-medium text-gray-900"></span></p>
                     <p class="text-sm text-gray-600 mt-2">IMEI: <span id="imei-number" class="font-medium text-gray-900"></span></p>
                 </div>
                 <div class="flex justify-between">
@@ -79,13 +100,16 @@
 
         $('#barcode-form').submit(function(e) {
             e.preventDefault();
-            var barcode = $('#barcode-input').val();
-            if (barcode) {
-                $.post('/process-barcode/', {
-                    barcode: barcode,
-                    stage: 'second-stage',
-                    csrfmiddlewaretoken: '{{ csrf_token }}'
-                }, function(data) {
+            var formData = new FormData(this);
+            formData.append('stage', 'second-stage');
+
+            $.ajax({
+                url: '/process-barcode/',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(data) {
                     if (data.success) {
                         $('#serial-number').text(data.serial_number);
                         $('#imei-number').text(data.imei_number);
@@ -98,10 +122,11 @@
                     } else {
                         alert('Error generating label: ' + data.error);
                     }
-                });
-            } else {
-                alert('Please enter a barcode');
-            }
+                },
+                error: function() {
+                    alert('An error occurred while processing the request.');
+                }
+            });
         });
 
         $('#print-btn').click(function() {

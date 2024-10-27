@@ -32,13 +32,17 @@ from django.conf import settings
 from django.contrib.auth.forms import UserCreationForm
 from django.urls import reverse_lazy
 from django.views.generic.edit import CreateView
+from django.views.decorators.csrf import csrf_exempt
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Register Arial font
 font_path = os.path.join(settings.STATIC_ROOT, 'fonts', 'Arial.ttf')
 pdfmetrics.registerFont(TTFont('Arial', font_path))
 
 # Assuming the Excel file is in the same directory as manage.py
-EXCEL_FILE_PATH = 'barcode_data.xlsx'
+EXCEL_FILE_PATH = os.path.join(settings.BASE_DIR, 'barcode_data.xlsx')
 
 # Create your views here.
 
@@ -109,24 +113,28 @@ def update_print_status(request):
         return JsonResponse({'error': f'An error occurred: {str(e)}'}, status=500)
 
 @login_required
+@csrf_exempt
 def process_barcode(request):
-    scanned_barcode = request.POST.get('barcode', '')
-    stage = request.POST.get('stage', '')
-    should_print = request.POST.get('print', 'false').lower() == 'true'
+    if request.method == 'POST':
+        barcode = request.POST.get('barcode', '')
+        stage = request.POST.get('stage', '')
+        should_print = request.POST.get('print', 'false').lower() == 'true'
 
-    if stage == 'first-stage':
-        response_data = process_first_stage(scanned_barcode)
-    elif stage == 'second-stage':
-        response_data = process_second_stage(scanned_barcode)
-    else:
-        return JsonResponse({'error': 'Invalid stage'}, status=400)
+        if stage == 'first-stage':
+            response_data = process_first_stage(barcode)
+        elif stage == 'second-stage':
+            response_data = process_second_stage(request)
+        else:
+            return JsonResponse({'error': 'Invalid stage'}, status=400)
 
-    if should_print and response_data.get('success', False):
-        print_success, print_message = print_label(response_data.get('label_pdf', ''), request.user, scanned_barcode)
-        response_data['print_success'] = print_success
-        response_data['print_message'] = print_message
+        if should_print and response_data.get('success', False):
+            print_success, print_message = print_label(response_data.get('label_pdf', ''), request.user, barcode)
+            response_data['print_success'] = print_success
+            response_data['print_message'] = print_message
 
-    return JsonResponse(response_data)
+        return JsonResponse(response_data)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 def process_first_stage(barcode):
     try:
@@ -149,14 +157,26 @@ def process_first_stage(barcode):
             'barcode': barcode
         }
 
-def process_second_stage(barcode):
+def process_second_stage(request):
     try:
+        barcode = request.POST.get('barcode', '')
+        model = request.POST.get('model', '')
+        fcc_id = request.POST.get('fcc_id', '')
+        email = request.POST.get('email', '')
+        logo = request.FILES.get('logo')
+        fc_logo = request.FILES.get('fc_logo')
+
+        logger.debug(f"Excel file path: {EXCEL_FILE_PATH}")
+        logger.debug(f"Excel file exists: {os.path.exists(EXCEL_FILE_PATH)}")
+
         # Read the Excel file
         df = pd.read_excel(EXCEL_FILE_PATH, dtype={
             'barcode_number': str, 
             'sr_number': str, 
             'CELL_Info.imei': str
         }, na_values=['NA'], keep_default_na=False)
+        
+        logger.debug(f"Excel file read successfully. Columns: {df.columns.tolist()}")
         
         # Ensure required columns exist
         required_columns = ['barcode_number', 'sr_number', 'CELL_Info.imei']
@@ -189,8 +209,15 @@ def process_second_stage(barcode):
             label.serial_number = str(data.get('sr_number', 'N/A')).strip()
             label.imei_number = str(data.get('CELL_Info.imei', 'N/A')).strip()
             label.save()
-
-        label_content, label_pdf_base64 = generate_second_stage_label(label.serial_number, data)
+        label_content, label_pdf_base64 = generate_second_stage_label(
+            label.serial_number, 
+            label.imei_number, 
+            model, 
+            fcc_id, 
+            email, 
+            logo, 
+            fc_logo
+        )
         
         return {
             'success': True,
@@ -200,9 +227,11 @@ def process_second_stage(barcode):
             'serial_number': label.serial_number,
             'imei_number': label.imei_number,
         }
-    except FileNotFoundError:
-        return {'error': 'Excel file not found', 'success': False}
+    except FileNotFoundError as e:
+        logger.error(f"FileNotFoundError: {str(e)}")
+        return {'error': f'Excel file not found: {str(e)}', 'success': False}
     except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
         return {'error': f'An unexpected error occurred: {str(e)}', 'success': False}
 
 def generate_first_stage_label(barcode):
@@ -239,7 +268,7 @@ def generate_first_stage_label(barcode):
     
     return f"Barcode: {barcode}", f"data:application/pdf;base64,{pdf_base64}"
 
-def generate_second_stage_label(serial_number, data):
+def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email, logo, fc_logo):
     buffer = BytesIO()
     
     # Create the PDF object, using BytesIO as its "file."
@@ -248,19 +277,49 @@ def generate_second_stage_label(serial_number, data):
     # Set font to Arial and size to 6px (approximately 4.5 points)
     c.setFont("Arial", 4.5)
     
-    # Draw the SN
-    sn_x = 41.7*mm
-    sn_y = (25-3)*mm
-    c.drawString(sn_x, sn_y, f"{serial_number}")
-    
-    # Generate and draw the barcode
-    barcode = code128.Code128(serial_number, barWidth=0.26*mm, barHeight=7*mm)
-    barcode_y = 13*mm  # Positioned just below SN
-    barcode.drawOn(c, 30.7*mm, barcode_y)  # Use the same x-coordinate as SN
+    # Draw the logo if provided
+    if logo:
+        try:
+            logo_path = os.path.join(settings.MEDIA_ROOT, 'temp_logo.png')
+            with open(logo_path, 'wb+') as destination:
+                for chunk in logo.chunks():
+                    destination.write(chunk)
+            c.drawImage(logo_path, 6*mm, 22.8*mm, width=10*mm, height=20*mm)  # 1.2mm from top, 6mm from left
+            os.remove(logo_path)
+        except Exception as e:
+            print(f"Error processing logo: {str(e)}")
+
+
+
+    # Draw the model and FCC ID
+    c.setFont("Arial", 4.5)
+    c.drawString(8.1*mm, 16*mm, f"Model: {model}")
+    c.drawString(8.1*mm, 13*mm, f"FCC ID: {fcc_id}")
     
     # Draw the IMEI
-    imei_number = str(data.get('CELL_Info.imei', 'N/A')).strip()
-    c.drawString(13.4*mm, (25-19.3)*mm, f"{imei_number}")
+    c.drawString(8.1*mm, 10*mm, f"IMEI: {imei_number}")
+    
+    # Draw the SN
+    c.drawString(38.7*mm, 23*mm, f"SN: {serial_number}")
+    
+    # Generate and draw the barcode
+    barcode = code128.Code128(serial_number, barWidth=0.25*mm, barHeight=10*mm)
+    barcode.drawOn(c, 32.7*mm, 11*mm)
+    
+    # Draw the email
+    c.drawString(38.7*mm, 8*mm, email)
+    
+    # Draw the FC logo if provided
+    if fc_logo:
+        try:
+            fc_logo_path = os.path.join(settings.MEDIA_ROOT, 'temp_fc_logo.png')
+            with open(fc_logo_path, 'wb+') as destination:
+                for chunk in fc_logo.chunks():
+                    destination.write(chunk)
+            c.drawImage(fc_logo_path, 85*mm, 2*mm, width=8*mm, height=8*mm)
+            os.remove(fc_logo_path)
+        except Exception as e:
+            print(f"Error processing FC logo: {str(e)}")
     
     # Close the PDF object cleanly, and we're done.
     c.showPage()
@@ -413,3 +472,4 @@ class SignUpView(CreateView):
     form_class = UserCreationForm
     success_url = reverse_lazy('login')
     template_name = 'signup.html'
+
