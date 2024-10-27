@@ -290,9 +290,9 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
                     destination.write(chunk)
             logger.debug(f"Logo file size: {os.path.getsize(logo_path)} bytes")
             
-            # Draw the logo at the correct position (6mm from left, 1.2mm from top)
-            c.drawImage(logo_path, 8.1*mm, 10*mm, width=10*mm, height=20*mm, preserveAspectRatio=True)
-            logger.debug(f"Logo drawn at position: 6mm from left, 3.8mm from bottom")
+            # Increase the logo size to 15mm x 30mm (50% larger)
+            c.drawImage(logo_path, 6*mm, 3.8*mm, width=15*mm, height=30*mm, preserveAspectRatio=True)
+            logger.debug(f"Logo drawn at position: 6mm from left, 3.8mm from bottom, size: 15mm x 30mm")
             os.remove(logo_path)
         except Exception as e:
             logger.error(f"Error processing logo: {str(e)}")
