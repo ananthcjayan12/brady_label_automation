@@ -13,12 +13,9 @@ class ExcelData(models.Model):
         return f"Serial: {self.serial_number}, IMEI: {self.imei_number}"
 
 class Label(models.Model):
-    STAGE_CHOICES = [
-        ('first', 'First Stage'),
-        ('second', 'Second Stage'),
-    ]
     barcode = models.CharField(max_length=100, unique=True)
-    stage = models.CharField(max_length=10, choices=STAGE_CHOICES)
+    stage = models.CharField(max_length=10, choices=[('first', 'First Stage'), ('second', 'Second Stage')])
+    custom_text = models.CharField(max_length=100, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     printed_at = models.DateTimeField(null=True, blank=True)
     is_printed = models.BooleanField(default=False)

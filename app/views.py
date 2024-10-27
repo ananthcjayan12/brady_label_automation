@@ -122,7 +122,7 @@ def process_barcode(request):
         should_print = request.POST.get('print', 'false').lower() == 'true'
 
         if stage == 'first-stage':
-            response_data = process_first_stage(barcode)
+            response_data = process_first_stage(request)
         elif stage == 'second-stage':
             response_data = process_second_stage(request)
         else:
@@ -137,19 +137,25 @@ def process_barcode(request):
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
-def process_first_stage(barcode):
+def process_first_stage(request):
+    barcode = request.POST.get('barcode', '')
+    custom_text = request.POST.get('custom_text', '')
     try:
         label, created = Label.objects.get_or_create(
             barcode=barcode,
-            defaults={'stage': 'first'}
+            defaults={'stage': 'first', 'custom_text': custom_text}
         )
-        label_content, label_pdf_base64 = generate_first_stage_label(barcode)
+        if not created:
+            label.custom_text = custom_text
+            label.save()
+        label_content, label_pdf_base64 = generate_first_stage_label(barcode, custom_text)
         return {
             'success': True,
             'message': 'Label generated successfully',
             'label_content': label_content,
             'label_pdf': label_pdf_base64,
-            'barcode': barcode
+            'barcode': barcode,
+            'custom_text': custom_text
         }
     except IntegrityError:
         return {
@@ -237,28 +243,42 @@ def process_second_stage(request):
         logger.error(f"Unexpected error: {str(e)}")
         return {'error': f'An unexpected error occurred: {str(e)}', 'success': False}
 
-def generate_first_stage_label(barcode):
+def generate_first_stage_label(barcode, custom_text):
     buffer = BytesIO()
     
     # Create the PDF object, using BytesIO as its "file."
     c = canvas.Canvas(buffer, pagesize=(19.05*mm, 6.35*mm))
     
-    # Leave space for the title (about 1/3 of the label height)
-    usable_height = 4.23*mm  # 2/3 of 6.35mm
+    # Set font to Arial and size to 3 points (smaller to fit better)
+    c.setFont("Arial", 3)
+    
+    # Calculate available space
+    total_height = 6.35*mm
+    margin = 0.5*mm
+    available_height = total_height - (2 * margin)
+    
+    # Draw the custom text if provided
+    if custom_text:
+        text_height = 1.5*mm  # Height for custom text
+        text_width = c.stringWidth(custom_text, "ArialBold", 5)
+        text_x = (19.05*mm - text_width) / 2  # Center the text horizontally
+        c.drawString(text_x, total_height - margin - text_height+2, custom_text)
+    else:
+        text_height = 0
     
     # Generate and draw the barcode
-    barcode_height = usable_height * 0.7  # 70% of usable height for barcode
+    barcode_height = available_height - text_height - 1*mm  # 1mm for barcode number
     barcode_obj = code128.Code128(barcode, barWidth=0.15*mm, barHeight=barcode_height)
     barcode_width = barcode_obj.width
     barcode_x = (19.05*mm - barcode_width) / 2  # Center the barcode horizontally
-    barcode_y = 6.35*mm - usable_height  # Position at the bottom of usable area
+    barcode_y = margin + 1*mm  # Position just above the barcode number
     barcode_obj.drawOn(c, barcode_x, barcode_y)
     
     # Draw the barcode number
-    c.setFont("Arial", 4)  # Set font to Arial, size 6
-    text_width = c.stringWidth(barcode, "Arial", 4)
+    c.setFont("Arial", 2.5)  # Even smaller font for the number
+    text_width = c.stringWidth(barcode, "Arial", 2.5)
     text_x = (19.05*mm - text_width) / 2  # Center the text horizontally
-    c.drawString(text_x, 0.5*mm, barcode)
+    c.drawString(text_x, margin, barcode)
     
     # Close the PDF object cleanly, and we're done.
     c.showPage()
@@ -269,7 +289,7 @@ def generate_first_stage_label(barcode):
     buffer.close()
     pdf_base64 = base64.b64encode(pdf).decode()
     
-    return f"Barcode: {barcode}", f"data:application/pdf;base64,{pdf_base64}"
+    return f"Barcode: {barcode}, Custom Text: {custom_text}", f"data:application/pdf;base64,{pdf_base64}"
 
 def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email, logo, fc_logo, font_size):
     buffer = BytesIO()
