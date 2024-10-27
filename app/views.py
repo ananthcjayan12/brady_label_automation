@@ -38,9 +38,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Register Arial font
-font_path = os.path.join(settings.STATIC_ROOT, 'fonts', 'Arial.ttf')
-pdfmetrics.registerFont(TTFont('Arial', font_path))
-
+font_path_arial = os.path.join(settings.STATIC_ROOT, 'fonts', 'Arial.ttf')
+font_path_arial_bold = os.path.join(settings.STATIC_ROOT, 'fonts', 'ArialBold.ttf')
+pdfmetrics.registerFont(TTFont('Arial', font_path_arial))
+pdfmetrics.registerFont(TTFont('ArialBold', font_path_arial_bold))
 # Assuming the Excel file is in the same directory as manage.py
 EXCEL_FILE_PATH = os.path.join(settings.BASE_DIR, 'barcode_data.xlsx')
 
@@ -281,30 +282,47 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
     if logo:
         try:
             logo_path = os.path.join(settings.MEDIA_ROOT, 'temp_logo.png')
+            logger.debug(f"Logo path: {logo_path}")
             with open(logo_path, 'wb+') as destination:
                 for chunk in logo.chunks():
                     destination.write(chunk)
-            c.drawImage(logo_path, 6*mm, 22.8*mm, width=10*mm, height=20*mm)  # 1.2mm from top, 6mm from left
+            logger.debug(f"Logo file size: {os.path.getsize(logo_path)} bytes")
+            
+            # Draw the logo at the correct position (6mm from left, 1.2mm from top)
+            c.drawImage(logo_path, 8.1*mm, 10*mm, width=10*mm, height=20*mm, preserveAspectRatio=True)
+            logger.debug(f"Logo drawn at position: 6mm from left, 3.8mm from bottom")
             os.remove(logo_path)
         except Exception as e:
-            print(f"Error processing logo: {str(e)}")
-
-
+            logger.error(f"Error processing logo: {str(e)}")
 
     # Draw the model and FCC ID
+    # Draw the Model
+    c.setFont("ArialBold", 4.5)
+    c.drawString(8.1*mm, 10*mm, "Model: ")
     c.setFont("Arial", 4.5)
-    c.drawString(8.1*mm, 16*mm, f"Model: {model}")
-    c.drawString(8.1*mm, 13*mm, f"FCC ID: {fcc_id}")
-    
+    c.drawString(8.1*mm + c.stringWidth("Model: ", "ArialBold", 4.5), 10*mm, model)
+
+    # Draw the FCC ID
+    c.setFont("ArialBold", 4.5)
+    c.drawString(8.1*mm, 7*mm, "FCC ID: ")
+    c.setFont("Arial", 4.5)
+    c.drawString(8.1*mm + c.stringWidth("FCC ID: ", "ArialBold", 4.5), 7*mm, fcc_id)
+
     # Draw the IMEI
-    c.drawString(8.1*mm, 10*mm, f"IMEI: {imei_number}")
-    
-    # Draw the SN
+    c.setFont("ArialBold", 4.5)
+    c.drawString(8.1*mm, 4*mm, "IMEI: ")
+    c.setFont("Arial", 4.5)
+    c.drawString(8.1*mm + c.stringWidth("IMEI: ", "ArialBold", 4.5), 4*mm, imei_number)
+
+    # Draw the SN (prepared for the next line)
+    c.setFont("ArialBold", 4.5)
+    c.drawString(38.7*mm, 23*mm, "SN: ")
+    c.setFont("Arial", 4.5)  # Set font back to Arial, size 6
     c.drawString(38.7*mm, 23*mm, f"SN: {serial_number}")
     
     # Generate and draw the barcode
-    barcode = code128.Code128(serial_number, barWidth=0.25*mm, barHeight=10*mm)
-    barcode.drawOn(c, 32.7*mm, 11*mm)
+    barcode = code128.Code128(serial_number, barWidth=0.26*mm, barHeight=10*mm)
+    barcode.drawOn(c, 31.7*mm, 11*mm)
     
     # Draw the email
     c.drawString(38.7*mm, 8*mm, email)
@@ -319,7 +337,7 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
             c.drawImage(fc_logo_path, 85*mm, 2*mm, width=8*mm, height=8*mm)
             os.remove(fc_logo_path)
         except Exception as e:
-            print(f"Error processing FC logo: {str(e)}")
+            logger.error(f"Error processing FC logo: {str(e)}")
     
     # Close the PDF object cleanly, and we're done.
     c.showPage()
