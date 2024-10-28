@@ -275,7 +275,7 @@ def generate_first_stage_label(barcode, custom_text):
     
     # Generate and draw the barcode (reduced size)
     barcode_height = 3*mm  # Reduced height
-    barcode_obj = code128.Code128(barcode, barWidth=0.10*mm, barHeight=barcode_height)  # Reduced bar width
+    barcode_obj = code128.Code128(barcode, barWidth=0.13*mm, barHeight=barcode_height)  # Reduced bar width
     barcode_width = barcode_obj.width
     barcode_x = (total_width - barcode_width) / 2  # Center the barcode horizontally
     barcode_y = margin + 1.5*mm  # Adjusted position to center vertically
