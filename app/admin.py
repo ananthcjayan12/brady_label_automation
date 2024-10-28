@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import path
-from .models import Label
+from .models import Label, ExcelData
 from .dashboard import dashboard
 
 class CustomAdminSite(admin.AdminSite):
@@ -15,26 +15,15 @@ admin_site = CustomAdminSite(name='customadmin')
 
 @admin.register(Label, site=admin_site)
 class LabelAdmin(admin.ModelAdmin):
-    list_display = ('barcode', 'stage', 'created_at', 'is_printed', 'printed_at')
-    list_filter = ('stage', 'is_printed')
-    search_fields = ('barcode', 'serial_number', 'imei_number', 'unique_number')
-    readonly_fields = ('created_at',)
-    
-    fieldsets = (
-        (None, {
-            'fields': ('barcode', 'stage', 'is_printed', 'printed_at')
-        }),
-        ('Second Stage Details', {
-            'fields': ('serial_number', 'imei_number', 'unique_number'),
-            'classes': ('collapse',),
-        }),
-    )
+    list_display = ['barcode', 'stage', 'created_at']  # Removed is_printed and printed_at
+    list_filter = ['stage']  # Removed is_printed
+    search_fields = ['barcode', 'serial_number', 'imei_number']
+    readonly_fields = ['created_at']
 
-    def get_fieldsets(self, request, obj=None):
-        fieldsets = super().get_fieldsets(request, obj)
-        if obj and obj.stage == 'first':
-            return fieldsets[:1]  # Only show the first fieldset for first stage labels
-        return fieldsets
+@admin.register(ExcelData)
+class ExcelDataAdmin(admin.ModelAdmin):
+    list_display = ['serial_number', 'imei_number', 'unique_number']
+    search_fields = ['serial_number', 'imei_number', 'unique_number']
 
 # Replace the default admin site
 admin.site = admin_site

@@ -63,7 +63,6 @@ class DashboardView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['total_labels'] = Label.objects.count()
-        context['printed_labels'] = Label.objects.filter(is_printed=True).count()
         context['first_stage_labels'] = Label.objects.filter(stage='first').count()
         context['second_stage_labels'] = Label.objects.filter(stage='second').count()
 
@@ -393,39 +392,6 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
 
 def print_label(label_pdf_base64, user, barcode):
     try:
-        # Remove the data:application/pdf;base64, prefix
-        pdf_data = base64.b64decode(label_pdf_base64.split(',')[1])
-
-        # Create a temporary file to store the PDF
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
-            temp_file.write(pdf_data)
-            temp_file_path = temp_file.name
-
-        # Connect to CUPS
-        conn = cups.Connection()
-        printers = conn.getPrinters()
-        
-        if not printers:
-            return False, "No printers found"
-
-        # Get the default printer
-        default_printer = conn.getDefault()
-        if not default_printer:
-            # If no default printer, use the first available printer
-            default_printer = list(printers.keys())[0]
-
-        # Print 2 copies
-        copies = 1
-        print_options = {
-            "copies": str(copies)
-        }
-
-        # Send print job
-        job_id = conn.printFile(default_printer, temp_file_path, "Label Print Job", print_options)
-
-        # Clean up the temporary file
-        os.unlink(temp_file_path)
-
         # Update the label's print status and user in the database
         label = Label.objects.get(barcode=barcode)
         label.is_printed = True
@@ -433,9 +399,9 @@ def print_label(label_pdf_base64, user, barcode):
         label.printed_by = user
         label.save()
 
-        return True, f"Print job sent successfully. Job ID: {job_id}"
+        return True, "Label ready for printing"
     except Exception as e:
-        return False, f"Error printing label: {str(e)}"
+        return False, f"Error updating label status: {str(e)}"
 
 @login_required
 def preview_label(request, label_id):

@@ -7,7 +7,6 @@ class ExcelData(models.Model):
     serial_number = models.CharField(max_length=100, unique=True)
     imei_number = models.CharField(max_length=100)
     unique_number = models.CharField(max_length=100)
-    is_printed = models.BooleanField(default=False)
 
     def __str__(self):
         return f"Serial: {self.serial_number}, IMEI: {self.imei_number}"
@@ -17,15 +16,10 @@ class Label(models.Model):
     stage = models.CharField(max_length=10, choices=[('first', 'First Stage'), ('second', 'Second Stage')])
     custom_text = models.CharField(max_length=100, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    printed_at = models.DateTimeField(null=True, blank=True)
-    is_printed = models.BooleanField(default=False)
-    printed_by = models.ForeignKey(User, null=True, blank=True, related_name='printed_labels', on_delete=models.SET_NULL)
     
     # Fields for second stage
     serial_number = models.CharField(max_length=100, null=True, blank=True)
     imei_number = models.CharField(max_length=100, null=True, blank=True)
-    # Remove the unique_number field if it's no longer needed
-    # unique_number = models.CharField(max_length=100, null=True, blank=True)
 
     def __str__(self):
         return f"{self.get_stage_display()} - {self.barcode}"
