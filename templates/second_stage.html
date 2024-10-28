@@ -11,8 +11,9 @@
             <form id="barcode-form" class="space-y-6" enctype="multipart/form-data">
                 {% csrf_token %}
                 <div>
-                    <label for="logo-upload" class="block text-sm font-medium text-gray-700">Upload Logo (10x20)</label>
+                    <label for="logo-upload" class="block text-sm font-medium text-gray-700">Upload Logo (10x20) - Optional</label>
                     <input type="file" id="logo-upload" name="logo" accept="image/*" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                    <p class="mt-1 text-sm text-gray-500">Leave empty to use default logo</p>
                 </div>
                 <div>
                     <label for="model-input" class="block text-sm font-medium text-gray-700">Model</label>
@@ -38,8 +39,9 @@
                     <input type="email" id="email-input" name="email" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
                 </div>
                 <div>
-                    <label for="fc-logo-upload" class="block text-sm font-medium text-gray-700">Upload FC Logo (10x10)</label>
+                    <label for="fc-logo-upload" class="block text-sm font-medium text-gray-700">Upload FC Logo (10x10) - Optional</label>
                     <input type="file" id="fc-logo-upload" name="fc_logo" accept="image/*" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                    <p class="mt-1 text-sm text-gray-500">Leave empty to use default FC logo</p>
                 </div>
                 <div>
                     <label for="font-size" class="block text-sm font-medium text-gray-700">Font Size</label>

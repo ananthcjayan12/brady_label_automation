@@ -307,25 +307,28 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
     # Set font to Arial and use the provided font size
     c.setFont("Arial", font_size)
     
-    # Draw the logo if provided
-    if logo:
-        try:
+    # Handle logo (use default if none provided)
+    try:
+        if logo:
             logo_path = os.path.join(settings.MEDIA_ROOT, 'temp_logo.png')
-            logger.debug(f"Logo path: {logo_path}")
             with open(logo_path, 'wb+') as destination:
                 for chunk in logo.chunks():
                     destination.write(chunk)
-            logger.debug(f"Logo file size: {os.path.getsize(logo_path)} bytes")
-            
-            # Increase the logo size to 15mm x 30mm (50% larger)
-            c.drawImage(logo_path, 6*mm, 3.8*mm, width=15*mm, height=30*mm, preserveAspectRatio=True)
-            logger.debug(f"Logo drawn at position: 6mm from left, 3.8mm from bottom, size: 15mm x 30mm")
+        else:
+            # Use default logo
+            logo_path = os.path.join(settings.STATIC_ROOT, 'img', 'default_logo.png')
+        
+        # Draw the logo
+        c.drawImage(logo_path, 6*mm, 3.8*mm, width=15*mm, height=30*mm, preserveAspectRatio=True)
+        
+        # Clean up temporary file if it was created
+        if logo:
             os.remove(logo_path)
-        except Exception as e:
-            logger.error(f"Error processing logo: {str(e)}")
+            
+    except Exception as e:
+        logger.error(f"Error processing main logo: {str(e)}")
 
     # Draw the model and FCC ID
-    # Draw the Model
     c.setFont("ArialBold", font_size)
     c.drawString(8.1*mm, 10*mm, "Model: ")
     c.setFont("Arial", font_size)
@@ -343,11 +346,11 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
     c.setFont("Arial", font_size)
     c.drawString(8.1*mm + c.stringWidth("IMEI: ", "ArialBold", font_size), 4*mm, imei_number)
 
-    # Draw the SN (prepared for the next line)
+    # Draw the SN
     c.setFont("ArialBold", font_size)
     c.drawString(38.7*mm, 23*mm, "SN: ")
-    c.setFont("Arial", font_size)  # Set font back to Arial, size 6
-    c.drawString(38.7*mm, 23*mm, f"SN: {serial_number}")
+    c.setFont("Arial", font_size)
+    c.drawString(38.7*mm + c.stringWidth("SN: ", "ArialBold", font_size), 23*mm, serial_number)
     
     # Generate and draw the barcode
     barcode = code128.Code128(serial_number, barWidth=0.26*mm, barHeight=10*mm)
@@ -356,17 +359,26 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
     # Draw the email
     c.drawString(38.7*mm, 8*mm, email)
     
-    # Draw the FC logo if provided
-    if fc_logo:
-        try:
+    # Handle FC logo (use default if none provided)
+    try:
+        if fc_logo:
             fc_logo_path = os.path.join(settings.MEDIA_ROOT, 'temp_fc_logo.png')
             with open(fc_logo_path, 'wb+') as destination:
                 for chunk in fc_logo.chunks():
                     destination.write(chunk)
-            c.drawImage(fc_logo_path, 85*mm, 2*mm, width=8*mm, height=8*mm)
+        else:
+            # Use default FC logo
+            fc_logo_path = os.path.join(settings.STATIC_ROOT, 'img', 'default_fc_logo.png')
+        
+        # Draw the FC logo
+        c.drawImage(fc_logo_path, 85*mm, 2*mm, width=8*mm, height=8*mm)
+        
+        # Clean up temporary file if it was created
+        if fc_logo:
             os.remove(fc_logo_path)
-        except Exception as e:
-            logger.error(f"Error processing FC logo: {str(e)}")
+            
+    except Exception as e:
+        logger.error(f"Error processing FC logo: {str(e)}")
     
     # Close the PDF object cleanly, and we're done.
     c.showPage()
