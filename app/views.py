@@ -249,35 +249,42 @@ def generate_first_stage_label(barcode, custom_text):
     # Create the PDF object, using BytesIO as its "file."
     c = canvas.Canvas(buffer, pagesize=(19.05*mm, 6.35*mm))
     
-    # Set font to Arial and size to 3 points (smaller to fit better)
-    c.setFont("Arial", 3)
-    
     # Calculate available space
     total_height = 6.35*mm
+    total_width = 19.05*mm
     margin = 0.5*mm
     available_height = total_height - (2 * margin)
     
+    # Set consistent font size for both top and bottom text
+    font_size = 3
+    
     # Draw the custom text if provided
     if custom_text:
+        c.setFont("Arial", font_size)
         text_height = 1.5*mm  # Height for custom text
-        text_width = c.stringWidth(custom_text, "ArialBold", 5)
-        text_x = (19.05*mm - text_width) / 2  # Center the text horizontally
-        c.drawString(text_x, total_height - margin - text_height+2, custom_text)
+        
+        # Calculate text width to center it
+        text_width = c.stringWidth(custom_text, "Arial", font_size)
+        text_x = (total_width - text_width) / 2  # Center the text horizontally
+        text_y = total_height - margin - 1*mm  # Position from top with margin
+        
+        # Draw the centered text
+        c.drawString(text_x, text_y, custom_text)
     else:
         text_height = 0
     
-    # Generate and draw the barcode
-    barcode_height = available_height - text_height - 1*mm  # 1mm for barcode number
-    barcode_obj = code128.Code128(barcode, barWidth=0.15*mm, barHeight=barcode_height)
+    # Generate and draw the barcode (reduced size)
+    barcode_height = 3*mm  # Reduced height
+    barcode_obj = code128.Code128(barcode, barWidth=0.10*mm, barHeight=barcode_height)  # Reduced bar width
     barcode_width = barcode_obj.width
-    barcode_x = (19.05*mm - barcode_width) / 2  # Center the barcode horizontally
-    barcode_y = margin + 1*mm  # Position just above the barcode number
-    barcode_obj.drawOn(c, barcode_x, barcode_y)
+    barcode_x = (total_width - barcode_width) / 2  # Center the barcode horizontally
+    barcode_y = margin + 1.5*mm  # Adjusted position to center vertically
+    barcode_obj.drawOn(c, barcode_x, barcode_y-0.5*mm)
     
-    # Draw the barcode number
-    c.setFont("Arial", 2.5)  # Even smaller font for the number
-    text_width = c.stringWidth(barcode, "Arial", 2.5)
-    text_x = (19.05*mm - text_width) / 2  # Center the text horizontally
+    # Draw the barcode number with same font size as top text
+    c.setFont("Arial", font_size)  # Same font size as custom text
+    text_width = c.stringWidth(barcode, "Arial", font_size)
+    text_x = (total_width - text_width) / 2  # Center the text horizontally
     c.drawString(text_x, margin, barcode)
     
     # Close the PDF object cleanly, and we're done.
