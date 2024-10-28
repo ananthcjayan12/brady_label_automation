@@ -17,11 +17,21 @@
                 </div>
                 <div>
                     <label for="model-input" class="block text-sm font-medium text-gray-700">Model</label>
-                    <input type="text" id="model-input" name="model" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                    <input 
+                        type="text" 
+                        id="model-input" 
+                        name="model" 
+                        value="0124-010" 
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
                 </div>
                 <div>
                     <label for="fcc-id-input" class="block text-sm font-medium text-gray-700">FCC ID</label>
-                    <input type="text" id="fcc-id-input" name="fcc_id" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                    <input 
+                        type="text" 
+                        id="fcc-id-input" 
+                        name="fcc_id" 
+                        value="2BFGFWTX1" 
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
                 </div>
                 <div>
                     <label for="barcode-input" class="block text-sm font-medium text-gray-700">Scan Barcode</label>
@@ -36,7 +46,12 @@
                 </div>
                 <div>
                     <label for="email-input" class="block text-sm font-medium text-gray-700">Email</label>
-                    <input type="email" id="email-input" name="email" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                    <input 
+                        type="email" 
+                        id="email-input" 
+                        name="email" 
+                        value="contact@waveinnova.com" 
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
                 </div>
                 <div>
                     <label for="fc-logo-upload" class="block text-sm font-medium text-gray-700">Upload FC Logo (10x10) - Optional</label>
@@ -110,9 +125,32 @@
     $(document).ready(function() {
         let generatedPdfData = null;
 
+        // Set default values if fields are empty
+        if (!$('#model-input').val()) {
+            $('#model-input').val('0124-010');
+        }
+        if (!$('#fcc-id-input').val()) {
+            $('#fcc-id-input').val('2BFGFWTX1');
+        }
+        if (!$('#email-input').val()) {
+            $('#email-input').val('contact@waveinnova.com');
+        }
+
         $('#barcode-form').submit(function(e) {
             e.preventDefault();
             var formData = new FormData(this);
+            
+            // Ensure default values are included even if not modified
+            if (!formData.get('model')) {
+                formData.set('model', '0124-010');
+            }
+            if (!formData.get('fcc_id')) {
+                formData.set('fcc_id', '2BFGFWTX1');
+            }
+            if (!formData.get('email')) {
+                formData.set('email', 'contact@waveinnova.com');
+            }
+            
             formData.append('stage', 'second-stage');
 
             $.ajax({
