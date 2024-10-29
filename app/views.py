@@ -13,7 +13,7 @@ import pandas as pd
 import os
 import tempfile
 from django.utils import timezone
-from .models import Label
+from .models import Label, ExcelConfiguration
 from django.db.models import Count
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
@@ -48,6 +48,12 @@ EXCEL_FILE_PATH = os.path.join(settings.BASE_DIR, 'barcode_data.xlsx')
 
 class HomeView(TemplateView):
     template_name = 'home.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if self.request.user.is_authenticated:
+            context['excel_path'] = ExcelConfiguration.get_excel_path()
+        return context
 
 class FirstStageView(TemplateView):
     template_name = 'first_stage.html'
@@ -496,4 +502,19 @@ class SignUpView(CreateView):
     form_class = UserCreationForm
     success_url = reverse_lazy('login')
     template_name = 'signup.html'
+
+@login_required
+def update_excel_path(request):
+    if request.method == 'POST':
+        new_path = request.POST.get('excel_path')
+        if new_path:
+            config = ExcelConfiguration.objects.first()
+            if not config:
+                config = ExcelConfiguration()
+            config.excel_path = new_path
+            config.updated_by = request.user
+            config.save()
+            return JsonResponse({'success': True})
+        return JsonResponse({'success': False, 'error': 'No path provided'})
+    return JsonResponse({'success': False, 'error': 'Invalid request method'})
 

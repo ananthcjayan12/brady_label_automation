@@ -1,7 +1,7 @@
 from django.urls import path
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
-from .views import HomeView, FirstStageView, SecondStageView, process_barcode, DashboardView, preview_label, SignUpView
+from .views import HomeView, FirstStageView, SecondStageView, process_barcode, DashboardView, preview_label, SignUpView, update_excel_path
 
 urlpatterns = [
     path('', HomeView.as_view(), name='home'),
@@ -13,4 +13,5 @@ urlpatterns = [
     path('login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),
     path('signup/', SignUpView.as_view(), name='signup'),
+    path('update-excel-path/', login_required(update_excel_path), name='update_excel_path'),
 ]

@@ -7,6 +7,33 @@
 <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
     <h1 class="text-3xl font-bold text-gray-900 mb-8">Welcome to Label Management System</h1>
     {% if user.is_authenticated %}
+        <!-- Excel Configuration Section -->
+        <div class="mb-8 bg-white shadow-lg rounded-lg overflow-hidden">
+            <div class="px-4 py-5 sm:p-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Excel File Configuration</h2>
+                <form id="excel-config-form" class="space-y-4">
+                    {% csrf_token %}
+                    <div>
+                        <label for="excel-path" class="block text-sm font-medium text-gray-700">Excel File Path</label>
+                        <div class="mt-1 flex rounded-md shadow-sm">
+                            <input type="text" 
+                                   name="excel_path" 
+                                   id="excel-path" 
+                                   value="{{ excel_path }}"
+                                   class="flex-1 min-w-0 block w-full px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                                   placeholder="Enter Excel file path">
+                            <button type="submit" 
+                                    class="ml-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                                Update Path
+                            </button>
+                        </div>
+                        <p class="mt-2 text-sm text-gray-500">Default path: Z:\AEPLV-Production\Wave Innova\01-06-2024\sample_exce.xlsx</p>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Existing Stage Options -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="bg-white shadow-lg rounded-lg overflow-hidden">
                 <div class="px-4 py-5 sm:p-6">
@@ -39,4 +66,32 @@
         </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        $('#excel-config-form').submit(function(e) {
+            e.preventDefault();
+            $.ajax({
+                url: '{% url "update_excel_path" %}',
+                type: 'POST',
+                data: {
+                    excel_path: $('#excel-path').val(),
+                    csrfmiddlewaretoken: $('input[name=csrfmiddlewaretoken]').val()
+                },
+                success: function(response) {
+                    if (response.success) {
+                        alert('Excel path updated successfully');
+                    } else {
+                        alert('Error: ' + response.error);
+                    }
+                },
+                error: function() {
+                    alert('Error updating Excel path');
+                }
+            });
+        });
+    });
+</script>
 {% endblock %}

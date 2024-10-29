@@ -26,3 +26,22 @@ class Label(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+class ExcelConfiguration(models.Model):
+    excel_path = models.CharField(max_length=500, default='Z:\\AEPLV-Production\\Wave Innova\\01-06-2024\\sample_exce.xlsx')
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        verbose_name = 'Excel Configuration'
+        verbose_name_plural = 'Excel Configuration'
+
+    def __str__(self):
+        return f"Excel Path: {self.excel_path}"
+
+    @classmethod
+    def get_excel_path(cls):
+        config = cls.objects.first()
+        if not config:
+            config = cls.objects.create(excel_path='Z:\\AEPLV-Production\\Wave Innova\\01-06-2024\\sample_exce.xlsx')
+        return config.excel_path

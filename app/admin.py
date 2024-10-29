@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import path
-from .models import Label, ExcelData
+from .models import Label, ExcelData, ExcelConfiguration
 from .dashboard import dashboard
 
 class CustomAdminSite(admin.AdminSite):
@@ -24,6 +24,15 @@ class LabelAdmin(admin.ModelAdmin):
 class ExcelDataAdmin(admin.ModelAdmin):
     list_display = ['serial_number', 'imei_number', 'unique_number']
     search_fields = ['serial_number', 'imei_number', 'unique_number']
+
+@admin.register(ExcelConfiguration, site=admin_site)
+class ExcelConfigurationAdmin(admin.ModelAdmin):
+    list_display = ['excel_path', 'updated_at', 'updated_by']
+    readonly_fields = ['updated_at', 'updated_by']
+
+    def save_model(self, request, obj, form, change):
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
 
 # Replace the default admin site
 admin.site = admin_site
