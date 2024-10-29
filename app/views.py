@@ -11,7 +11,6 @@ from io import BytesIO
 import base64
 import pandas as pd
 import os
-import cups
 import tempfile
 from django.utils import timezone
 from .models import Label
