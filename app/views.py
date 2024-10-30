@@ -413,7 +413,7 @@ def preview_label(request, label_id):
     try:
         label = Label.objects.get(id=label_id)
         if label.stage == 'first':
-            label_content, label_pdf_base64 = generate_first_stage_label(label.barcode)
+            label_content, label_pdf_base64 = generate_first_stage_label(label.barcode, label.custom_text)
         else:
             # For second stage, we need to fetch data from Excel
             df = pd.read_excel(EXCEL_FILE_PATH, dtype={
@@ -432,7 +432,17 @@ def preview_label(request, label_id):
                 }, status=404)
             
             data = data.iloc[0]
-            label_content, label_pdf_base64 = generate_second_stage_label(label.serial_number, data)
+            # Use default values for optional parameters
+            label_content, label_pdf_base64 = generate_second_stage_label(
+                label.serial_number,
+                label.imei_number,
+                "0124-010",  # default model
+                "2BFGFWTX1",  # default FCC ID
+                "contact@waveinnova.com",  # default email
+                None,  # no custom logo
+                None,  # no custom FC logo
+                4.5   # default font size
+            )
         
         return JsonResponse({
             'success': True,
@@ -444,6 +454,7 @@ def preview_label(request, label_id):
             'error': 'Label not found'
         }, status=404)
     except Exception as e:
+        logger.error(f"Error in preview_label: {str(e)}")  # Add logging
         return JsonResponse({
             'success': False,
             'error': str(e)
