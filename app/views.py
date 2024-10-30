@@ -253,27 +253,30 @@ def generate_first_stage_label(barcode, custom_text):
     # Create the PDF object, using BytesIO as its "file."
     c = canvas.Canvas(buffer, pagesize=(19.05*mm, 6.35*mm))
     
-    # Draw border with rounded corners
-    c.roundRect(0.2*mm, 0.2*mm, 18.65*mm, 5.95*mm, radius=0.5*mm)  # Added border
+    # Add padding to content area
+    padding = 0.8*mm  # Padding between border and content
     
-    # Calculate available space
+    # Draw border with rounded corners
+    c.roundRect(0.2*mm, 0.2*mm, 18.65*mm, 5.95*mm, radius=0.5*mm)
+    
+    # Calculate available space with padding
     total_height = 6.35*mm
     total_width = 19.05*mm
-    margin = 0.5*mm
-    available_height = total_height - (2 * margin)
+    content_width = total_width - (2 * padding)
+    content_height = total_height - (2 * padding)
     
     # Set consistent font size for both top and bottom text
-    font_size = 3
+    font_size = 2.5  # Reduced font size
     
     # Draw the custom text if provided
     if custom_text:
         c.setFont("Arial", font_size)
-        text_height = 1.5*mm  # Height for custom text
+        text_height = 1.2*mm  # Reduced height for text
         
-        # Calculate text width to center it
+        # Calculate text width to center it within padded area
         text_width = c.stringWidth(custom_text, "Arial", font_size)
-        text_x = (total_width - text_width) / 2  # Center the text horizontally
-        text_y = total_height - margin - 1*mm  # Position from top with margin
+        text_x = (total_width - text_width) / 2
+        text_y = total_height - padding - 0.8*mm  # Moved text up slightly
         
         # Draw the centered text
         c.drawString(text_x, text_y, custom_text)
@@ -281,24 +284,22 @@ def generate_first_stage_label(barcode, custom_text):
         text_height = 0
     
     # Generate and draw the barcode (reduced size)
-    barcode_height = 3*mm  # Reduced height
-    barcode_obj = code128.Code128(barcode, barWidth=0.18*mm, barHeight=barcode_height)  # Reduced bar width
+    barcode_height = 2.5*mm  # Slightly reduced height
+    barcode_obj = code128.Code128(barcode, barWidth=0.18*mm, barHeight=barcode_height)
     barcode_width = barcode_obj.width
-    barcode_x = (total_width - barcode_width) / 2  # Center the barcode horizontally
-    barcode_y = margin + 1.5*mm  # Adjusted position to center vertically
-    barcode_obj.drawOn(c, barcode_x, barcode_y-0.5*mm)
+    barcode_x = (total_width - barcode_width) / 2
+    barcode_y = padding + 1.2*mm  # Adjusted position to avoid overlap
+    barcode_obj.drawOn(c, barcode_x, barcode_y)
     
     # Draw the barcode number with same font size as top text
-    c.setFont("Arial", font_size)  # Same font size as custom text
+    c.setFont("Arial", font_size)
     text_width = c.stringWidth(barcode, "Arial", font_size)
-    text_x = (total_width - text_width) / 2  # Center the text horizontally
-    c.drawString(text_x, margin, barcode)
+    text_x = (total_width - text_width) / 2
+    c.drawString(text_x, padding + 0.2*mm, barcode)  # Moved number down slightly
     
-    # Close the PDF object cleanly, and we're done.
     c.showPage()
     c.save()
     
-    # Get the value of the BytesIO buffer and encode it to base64
     pdf = buffer.getvalue()
     buffer.close()
     pdf_base64 = base64.b64encode(pdf).decode()
@@ -311,13 +312,17 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
     # Create the PDF object, using BytesIO as its "file."
     c = canvas.Canvas(buffer, pagesize=(100*mm, 25*mm))
     
+    # Add padding to content area
+    padding = 1.5*mm  # Padding between border and content
+    
     # Draw border with rounded corners
-    c.roundRect(0.5*mm, 0.5*mm, 99*mm, 24*mm, radius=1*mm)  # Added border
+    c.roundRect(0.5*mm, 0.5*mm, 99*mm, 24*mm, radius=1*mm)
     
-    # Set font to Arial and use the provided font size
-    c.setFont("Arial", font_size)
+    # Calculate available space with padding
+    content_start_x = padding + 0.5*mm
+    content_start_y = padding + 0.5*mm
     
-    # Handle logo (use default if none provided)
+    # Handle logo
     try:
         if logo:
             logo_path = os.path.join(settings.MEDIA_ROOT, 'temp_logo.png')
@@ -325,51 +330,57 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
                 for chunk in logo.chunks():
                     destination.write(chunk)
         else:
-            # Use default logo
             logo_path = os.path.join(settings.STATIC_ROOT, 'img', 'default_logo.png')
         
-        # Draw the logo
-        c.drawImage(logo_path, 6*mm, 3.8*mm, width=15*mm, height=30*mm, preserveAspectRatio=True)
+        # Draw logo with padding (reduced size)
+        c.drawImage(logo_path, content_start_x + 5*mm, content_start_y + 3*mm, 
+                   width=12*mm, height=24*mm, preserveAspectRatio=True)  # Reduced size
         
-        # Clean up temporary file if it was created
         if logo:
             os.remove(logo_path)
-            
     except Exception as e:
-        logger.error(f"Error processing main logo: {str(e)}")
+        logger.error(f"Error processing logo: {str(e)}")
 
-    # Draw the model and FCC ID
-    c.setFont("ArialBold", font_size)
-    c.drawString(8.1*mm, 10*mm, "Model: ")
-    c.setFont("Arial", font_size)
-    c.drawString(8.1*mm + c.stringWidth("Model: ", "ArialBold", font_size), 10*mm, model)
-
-    # Draw the FCC ID
-    c.setFont("ArialBold", font_size)
-    c.drawString(8.1*mm, 7*mm, "FCC ID: ")
-    c.setFont("Arial", font_size)
-    c.drawString(8.1*mm + c.stringWidth("FCC ID: ", "ArialBold", font_size), 7*mm, fcc_id)
-
-    # Draw the IMEI
-    c.setFont("ArialBold", font_size)
-    c.drawString(8.1*mm, 4*mm, "IMEI: ")
-    c.setFont("Arial", font_size)
-    c.drawString(8.1*mm + c.stringWidth("IMEI: ", "ArialBold", font_size), 4*mm, imei_number)
-
-    # Draw the SN
-    c.setFont("ArialBold", font_size)
-    c.drawString(38.7*mm, 23*mm, "SN: ")
-    c.setFont("Arial", font_size)
-    c.drawString(38.7*mm + c.stringWidth("SN: ", "ArialBold", font_size), 23*mm, serial_number)
+    # Draw text elements with padding
+    text_start_x = content_start_x + 8*mm
     
-    # Generate and draw the barcode
-    barcode = code128.Code128(serial_number, barWidth=0.26*mm, barHeight=10*mm)
-    barcode.drawOn(c, 31.7*mm, 11*mm)
+    # Model
+    c.setFont("Arial", font_size)
+    c.drawString(text_start_x, content_start_y + 9*mm, "Model: ")
+    c.setFont("Arial", font_size)
+    c.drawString(text_start_x + c.stringWidth("Model: ", "Arial", font_size), 
+                content_start_y + 9*mm, model)
+
+    # FCC ID
+    c.setFont("Arial", font_size)
+    c.drawString(text_start_x, content_start_y + 6*mm, "FCC ID: ")
+    c.setFont("Arial", font_size)
+    c.drawString(text_start_x + c.stringWidth("FCC ID: ", "Arial", font_size), 
+                content_start_y + 6*mm, fcc_id)
+
+    # IMEI
+    c.setFont("Arial", font_size)
+    c.drawString(text_start_x, content_start_y + 3*mm, "IMEI: ")
+    c.setFont("Arial", font_size)
+    c.drawString(text_start_x + c.stringWidth("IMEI: ", "Arial", font_size), 
+                content_start_y + 3*mm, imei_number)
+
+    # SN and Barcode (adjusted positions)
+    barcode_start_x = content_start_x + 35*mm  # Moved right
+    c.setFont("Arial", font_size)
+    c.drawString(barcode_start_x + 7*mm, content_start_y + 20*mm, "SN: ")  # Moved down slightly
+    c.setFont("Arial", font_size)
+    c.drawString(barcode_start_x + 7*mm + c.stringWidth("SN: ", "Arial", font_size), 
+                content_start_y + 20*mm, serial_number)  # Moved down slightly
+    
+    # Generate and draw the barcode (moved down)
+    barcode = code128.Code128(serial_number, barWidth=0.26*mm, barHeight=9*mm)  # Slightly reduced height
+    barcode.drawOn(c, barcode_start_x, content_start_y + 8*mm)  # Moved down
     
     # Draw the email
-    c.drawString(38.7*mm, 8*mm, email)
+    c.drawString(barcode_start_x + 7*mm, content_start_y + 5*mm, email)
     
-    # Handle FC logo (use default if none provided)
+    # Handle FC logo
     try:
         if fc_logo:
             fc_logo_path = os.path.join(settings.MEDIA_ROOT, 'temp_fc_logo.png')
@@ -377,24 +388,20 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
                 for chunk in fc_logo.chunks():
                     destination.write(chunk)
         else:
-            # Use default FC logo
             fc_logo_path = os.path.join(settings.STATIC_ROOT, 'img', 'default_fc_logo.png')
         
-        # Draw the FC logo
-        c.drawImage(fc_logo_path, 85*mm, 2*mm, width=8*mm, height=8*mm)
+        # Draw FC logo with padding (reduced size)
+        c.drawImage(fc_logo_path, 99*mm - padding - 8*mm, content_start_y + 2*mm, 
+                   width=6*mm, height=6*mm)  # Reduced size
         
-        # Clean up temporary file if it was created
         if fc_logo:
             os.remove(fc_logo_path)
-            
     except Exception as e:
         logger.error(f"Error processing FC logo: {str(e)}")
     
-    # Close the PDF object cleanly, and we're done.
     c.showPage()
     c.save()
     
-    # Get the value of the BytesIO buffer and encode it to base64
     pdf = buffer.getvalue()
     buffer.close()
     pdf_base64 = base64.b64encode(pdf).decode()
