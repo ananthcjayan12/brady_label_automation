@@ -253,6 +253,9 @@ def generate_first_stage_label(barcode, custom_text):
     # Create the PDF object, using BytesIO as its "file."
     c = canvas.Canvas(buffer, pagesize=(19.05*mm, 6.35*mm))
     
+    # Draw border with rounded corners
+    c.roundRect(0.2*mm, 0.2*mm, 18.65*mm, 5.95*mm, radius=0.5*mm)  # Added border
+    
     # Calculate available space
     total_height = 6.35*mm
     total_width = 19.05*mm
@@ -307,6 +310,9 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
     
     # Create the PDF object, using BytesIO as its "file."
     c = canvas.Canvas(buffer, pagesize=(100*mm, 25*mm))
+    
+    # Draw border with rounded corners
+    c.roundRect(0.5*mm, 0.5*mm, 99*mm, 24*mm, radius=1*mm)  # Added border
     
     # Set font to Arial and use the provided font size
     c.setFont("Arial", font_size)
