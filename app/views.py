@@ -176,8 +176,8 @@ def process_second_stage(request):
         email = request.POST.get('email', '')
         logo = request.FILES.get('logo')
         fc_logo = request.FILES.get('fc_logo')
-        font_size = float(request.POST.get('font_size', 4.5))  # Get font size, default to 4.5 if not provided
-        product_name = request.POST.get('product_name', 'WaveTrac X1')
+        font_size = float(request.POST.get('font_size', 6))  # Changed default from 4.5 to 6
+        product_name = request.POST.get('product_name', 'WaveTrack X1')
 
         logger.debug(f"Excel file path: {EXCEL_FILE_PATH}")
         logger.debug(f"Excel file exists: {os.path.exists(EXCEL_FILE_PATH)}")
@@ -308,7 +308,7 @@ def generate_first_stage_label(barcode, custom_text):
     
     return f"Barcode: {barcode}, Custom Text: {custom_text}", f"data:application/pdf;base64,{pdf_base64}"
 
-def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email, logo, fc_logo, font_size, product_name="WaveTrac X1"):
+def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email, logo, fc_logo, font_size, product_name="WaveTrack X1"):
     buffer = BytesIO()
     
     # Create the PDF object, using BytesIO as its "file."
@@ -332,7 +332,7 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
                 for chunk in logo.chunks():
                     destination.write(chunk)
         else:
-            logo_path = os.path.join(settings.STATIC_ROOT, 'img', 'default_logo.png')
+            logo_path = os.path.join(settings.STATIC_ROOT, 'img', 'default_logo.jpg')
         
         # Draw logo with padding (top position)
         c.drawImage(logo_path, content_start_x + 5*mm, content_start_y + 14*mm, 
@@ -461,7 +461,7 @@ def preview_label(request, label_id):
                 "contact@waveinnova.com",  # default email
                 None,  # no custom logo
                 None,  # no custom FC logo
-                4.5   # default font size
+                6   # Changed default font size from 4.5 to 6
             )
         
         return JsonResponse({
