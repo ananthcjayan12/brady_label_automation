@@ -341,9 +341,9 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
         else:
             logo_path = os.path.join(settings.STATIC_ROOT, 'img', 'default_logo.jpg')
         
-        # Draw logo with adjusted position
-        c.drawImage(logo_path, content_start_x, content_start_y + 16*mm, 
-                   width=22*mm, height=5*mm, preserveAspectRatio=True)
+        # Draw logo directly without modifying transparency
+        c.drawImage(logo_path, content_start_x -6*mm, content_start_y + 16*mm, 
+                   width=33*mm, height=7.5*mm, preserveAspectRatio=True, mask='auto')  # Added mask='auto'
 
         if logo:
             os.remove(logo_path)
@@ -399,9 +399,9 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
         else:
             fc_logo_path = os.path.join(settings.STATIC_ROOT, 'img', 'default_fc_logo.png')
         
-        # Draw FC logo with adjusted position
-        c.drawImage(fc_logo_path, 100*mm - right_margin - 14*mm, content_start_y+1.5*mm , 
-                   width=6*mm, height=6*mm)
+        # Draw FC logo directly without modifying transparency
+        c.drawImage(fc_logo_path, 100*mm - right_margin - 14*mm, content_start_y+1.5*mm, 
+                   width=6*mm, height=6*mm, mask='auto')  # Added mask='auto'
         
         if fc_logo:
             os.remove(fc_logo_path)
