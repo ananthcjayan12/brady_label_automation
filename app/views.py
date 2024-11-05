@@ -258,8 +258,8 @@ def generate_first_stage_label(barcode, custom_text):
     # Add padding to content area
     padding = 0.8*mm  # Padding between border and content
     
-    # Draw border with rounded corners
-    c.roundRect(0.2*mm, 0.2*mm, 18.65*mm, 5.95*mm, radius=0.5*mm)
+    # # Draw border with rounded corners
+    # c.roundRect(0.2*mm, 0.2*mm, 18.65*mm, 5.95*mm, radius=0.5*mm)
     
     # Calculate available space with padding
     total_height = 6.35*mm
