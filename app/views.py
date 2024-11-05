@@ -386,7 +386,8 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
     barcode.drawOn(c, barcode_start_x, content_start_y + 8*mm)
     
     # Draw the email
-    c.drawString(barcode_start_x + 7*mm, content_start_y + 3*mm, email)
+    c.setFont("Arial", font_size+2)
+    c.drawString(barcode_start_x + 7*mm, content_start_y + 4*mm, email)
     
     # Handle FC logo
     try:
