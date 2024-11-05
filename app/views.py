@@ -272,12 +272,12 @@ def generate_first_stage_label(barcode, custom_text):
     
     # Draw the custom text if provided
     if custom_text:
-        c.setFont("Arial", font_size)
+        c.setFont("Arial", font_size+1.1)
         text_height = 1.2*mm  # Reduced height for text
         
         # Calculate text width to center it within padded area
         text_width = c.stringWidth(custom_text, "Arial", font_size)
-        text_x = (total_width - text_width) / 2
+        text_x = 2.5*mm
         text_y = total_height - padding - 0.8*mm  # Moved text up slightly
         
         # Draw the centered text
@@ -286,7 +286,7 @@ def generate_first_stage_label(barcode, custom_text):
         text_height = 0
     
     # Generate and draw the barcode (reduced size)
-    barcode_height = 2.5*mm  # Slightly reduced height
+    barcode_height = 2.3*mm  # Slightly reduced height
     barcode_obj = code128.Code128(barcode, barWidth=0.18*mm, barHeight=barcode_height)
     barcode_width = barcode_obj.width
     barcode_x = (total_width - barcode_width) / 2
@@ -294,7 +294,7 @@ def generate_first_stage_label(barcode, custom_text):
     barcode_obj.drawOn(c, barcode_x, barcode_y)
     
     # Draw the barcode number with same font size as top text
-    c.setFont("Arial", font_size+1.3)
+    c.setFont("Arial", font_size+1.1)
     text_width = c.stringWidth(barcode, "Arial", font_size)
     text_x = (total_width - text_width) / 2
     c.drawString(text_x, padding - 0.4*mm, barcode)  # Moved number down slightly
