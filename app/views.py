@@ -174,6 +174,7 @@ def process_second_stage(request):
         email = request.POST.get('email', '')
         logo = request.FILES.get('logo')
         fc_logo = request.FILES.get('fc_logo')
+        bin_logo = request.FILES.get('bin_logo')
         font_size = float(request.POST.get('font_size', 6))
         product_name = request.POST.get('product_name', 'WaveTrack X1')
 
@@ -230,8 +231,9 @@ def process_second_stage(request):
             email, 
             logo, 
             fc_logo,
+            bin_logo,
             font_size,
-            product_name  # Add this parameter
+            product_name
         )
         
         return {
@@ -308,7 +310,7 @@ def generate_first_stage_label(barcode, custom_text):
     
     return f"Barcode: {barcode}, Custom Text: {custom_text}", f"data:application/pdf;base64,{pdf_base64}"
 
-def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email, logo, fc_logo, font_size, product_name="WaveTrack X1"):
+def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email, logo, fc_logo, bin_logo, font_size, product_name="WaveTrack X1"):
     buffer = BytesIO()
     
     # Create the PDF object, using BytesIO as its "file."
@@ -339,7 +341,7 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
                 for chunk in logo.chunks():
                     destination.write(chunk)
         else:
-            logo_path = os.path.join(settings.STATIC_ROOT, 'img', 'default_logo.jpg')
+            logo_path = os.path.join(settings.STATIC_ROOT, 'img', 'default_logo.png')
         
         # Draw logo directly without modifying transparency
         c.drawImage(logo_path, content_start_x -6*mm, content_start_y + 16*mm, 
@@ -399,14 +401,33 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
         else:
             fc_logo_path = os.path.join(settings.STATIC_ROOT, 'img', 'default_fc_logo.png')
         
-        # Draw FC logo directly without modifying transparency
-        c.drawImage(fc_logo_path, 100*mm - right_margin - 14*mm, content_start_y+1.5*mm, 
-                   width=6*mm, height=6*mm, mask='auto')  # Added mask='auto'
+        # Draw FC logo (adjusted position)
+        c.drawImage(fc_logo_path, 100*mm - right_margin - 20*mm, content_start_y+1.5*mm, 
+                   width=5*mm, height=5*mm, mask='auto')
         
         if fc_logo:
             os.remove(fc_logo_path)
     except Exception as e:
         logger.error(f"Error processing FC logo: {str(e)}")
+
+    # Handle BIN logo
+    try:
+        if bin_logo:
+            bin_logo_path = os.path.join(settings.MEDIA_ROOT, 'temp_bin_logo.png')
+            with open(bin_logo_path, 'wb+') as destination:
+                for chunk in bin_logo.chunks():
+                    destination.write(chunk)
+        else:
+            bin_logo_path = os.path.join(settings.STATIC_ROOT, 'img', 'default_bin_logo.png')
+        
+        # Draw BIN logo
+        c.drawImage(bin_logo_path, 100*mm - right_margin - 12*mm, content_start_y+1.5*mm, 
+                   width=5*mm, height=5*mm, mask='auto')
+        
+        if bin_logo:
+            os.remove(bin_logo_path)
+    except Exception as e:
+        logger.error(f"Error processing BIN logo: {str(e)}")
     
     c.showPage()
     c.save()
@@ -466,7 +487,8 @@ def preview_label(request, label_id):
                 "contact@waveinnova.com",  # default email
                 None,  # no custom logo
                 None,  # no custom FC logo
-                6   # Changed default font size from 4.5 to 6
+                None,  # no custom BIN logo
+                6   # default font size
             )
         
         return JsonResponse({
