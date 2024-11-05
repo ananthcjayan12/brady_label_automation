@@ -290,14 +290,14 @@ def generate_first_stage_label(barcode, custom_text):
     barcode_obj = code128.Code128(barcode, barWidth=0.18*mm, barHeight=barcode_height)
     barcode_width = barcode_obj.width
     barcode_x = (total_width - barcode_width) / 2
-    barcode_y = padding + 1.2*mm  # Adjusted position to avoid overlap
+    barcode_y = padding + 1*mm  # Adjusted position to avoid overlap
     barcode_obj.drawOn(c, barcode_x, barcode_y)
     
     # Draw the barcode number with same font size as top text
-    c.setFont("Arial", font_size)
+    c.setFont("Arial", font_size+1.3)
     text_width = c.stringWidth(barcode, "Arial", font_size)
     text_x = (total_width - text_width) / 2
-    c.drawString(text_x, padding + 0.2*mm, barcode)  # Moved number down slightly
+    c.drawString(text_x, padding - 0.4*mm, barcode)  # Moved number down slightly
     
     c.showPage()
     c.save()
