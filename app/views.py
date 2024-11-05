@@ -379,13 +379,13 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
 
     # SN and Barcode (right side elements)
     barcode_start_x = content_start_x + 27*mm
-    c.drawString(barcode_start_x + 7*mm, content_start_y + 19*mm, "SN: ")
-    c.drawString(barcode_start_x + 7*mm + c.stringWidth("SN: ", "Arial", font_size), 
-                content_start_y + 19*mm, serial_number)
+    c.drawString(barcode_start_x + 6*mm, content_start_y + 21*mm, "SN: ")
+    c.drawString(barcode_start_x + 6*mm + c.stringWidth("SN: ", "Arial", font_size), 
+                content_start_y + 21*mm, serial_number)
     
     # Generate and draw the barcode
-    barcode = code128.Code128(serial_number, barWidth=0.255*mm, barHeight=9*mm)
-    barcode.drawOn(c, barcode_start_x, content_start_y + 8*mm)
+    barcode = code128.Code128(serial_number, barWidth=0.255*mm, barHeight=11*mm)
+    barcode.drawOn(c, barcode_start_x, content_start_y + 9*mm)
     
     # Draw the email
     c.setFont("Arial", font_size + 0.5)
