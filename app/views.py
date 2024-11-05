@@ -315,8 +315,8 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
     c = canvas.Canvas(buffer, pagesize=(100*mm, 25*mm))
     
     # Add padding and border margins
-    left_margin = 6*mm  # 6mm from left
-    right_margin = 6*mm  # 6mm from right
+    left_margin = 2*mm  # 6mm from left
+    right_margin = 2*mm  # 6mm from right
     top_margin = 1*mm   # 1mm from top
     bottom_margin = 1*mm  # 1mm from bottom
     
@@ -382,7 +382,7 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
                 content_start_y + 19*mm, serial_number)
     
     # Generate and draw the barcode
-    barcode = code128.Code128(serial_number, barWidth=0.21*mm, barHeight=9*mm)
+    barcode = code128.Code128(serial_number, barWidth=0.245*mm, barHeight=9*mm)
     barcode.drawOn(c, barcode_start_x, content_start_y + 8*mm)
     
     # Draw the email
