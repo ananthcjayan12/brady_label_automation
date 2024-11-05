@@ -41,8 +41,6 @@ font_path_arial = os.path.join(settings.STATIC_ROOT, 'fonts', 'Arial.ttf')
 font_path_arial_bold = os.path.join(settings.STATIC_ROOT, 'fonts', 'ArialBold.ttf')
 pdfmetrics.registerFont(TTFont('Arial', font_path_arial))
 pdfmetrics.registerFont(TTFont('ArialBold', font_path_arial_bold))
-# Assuming the Excel file is in the same directory as manage.py
-EXCEL_FILE_PATH = os.path.join(settings.BASE_DIR, 'barcode_data.xlsx')
 
 # Create your views here.
 
@@ -79,43 +77,43 @@ class DashboardView(TemplateView):
 
         return context
 
-def excel_lookup(request):
-    serial_number = request.GET.get('serial_number', '')
-    try:
-        df = pd.read_excel(EXCEL_FILE_PATH)
-        print(f"Excel columns: {df.columns.tolist()}")  # Debug print
-        if 'Serial Number' not in df.columns:
-            return JsonResponse({'error': 'Serial Number column not found in Excel'}, status=400)
-        row = df[df['Serial Number'] == serial_number]
-        if row.empty:
-            return JsonResponse({'error': 'Serial number not found'}, status=404)
-        row = row.iloc[0]
-        return JsonResponse({
-            'imei_number': row.get('IMEI Number', 'N/A'),
-            'unique_number': row.get('Unique Number', 'N/A'),
-            'is_printed': row.get('Is Printed', False)
-        })
-    except FileNotFoundError:
-        return JsonResponse({'error': 'Excel file not found'}, status=404)
-    except Exception as e:
-        return JsonResponse({'error': f'An error occurred: {str(e)}'}, status=500)
+# def excel_lookup(request):
+#     serial_number = request.GET.get('serial_number', '')
+#     try:
+#         df = pd.read_excel(EXCEL_FILE_PATH)
+#         print(f"Excel columns: {df.columns.tolist()}")  # Debug print
+#         if 'Serial Number' not in df.columns:
+#             return JsonResponse({'error': 'Serial Number column not found in Excel'}, status=400)
+#         row = df[df['Serial Number'] == serial_number]
+#         if row.empty:
+#             return JsonResponse({'error': 'Serial number not found'}, status=404)
+#         row = row.iloc[0]
+#         return JsonResponse({
+#             'imei_number': row.get('IMEI Number', 'N/A'),
+#             'unique_number': row.get('Unique Number', 'N/A'),
+#             'is_printed': row.get('Is Printed', False)
+#         })
+#     except FileNotFoundError:
+#         return JsonResponse({'error': 'Excel file not found'}, status=404)
+#     except Exception as e:
+#         return JsonResponse({'error': f'An error occurred: {str(e)}'}, status=500)
 
-def update_print_status(request):
-    serial_number = request.POST.get('serial_number', '')
-    try:
-        df = pd.read_excel(EXCEL_FILE_PATH)
-        if 'Serial Number' not in df.columns:
-            return JsonResponse({'error': 'Serial Number column not found in Excel'}, status=400)
-        mask = df['Serial Number'] == serial_number
-        if not mask.any():
-            return JsonResponse({'error': 'Serial number not found'}, status=404)
-        df.loc[mask, 'Is Printed'] = True
-        df.to_excel(EXCEL_FILE_PATH, index=False)
-        return JsonResponse({'success': True})
-    except FileNotFoundError:
-        return JsonResponse({'error': 'Excel file not found'}, status=404)
-    except Exception as e:
-        return JsonResponse({'error': f'An error occurred: {str(e)}'}, status=500)
+# def update_print_status(request):
+#     serial_number = request.POST.get('serial_number', '')
+#     try:
+#         df = pd.read_excel(EXCEL_FILE_PATH)
+#         if 'Serial Number' not in df.columns:
+#             return JsonResponse({'error': 'Serial Number column not found in Excel'}, status=400)
+#         mask = df['Serial Number'] == serial_number
+#         if not mask.any():
+#             return JsonResponse({'error': 'Serial number not found'}, status=404)
+#         df.loc[mask, 'Is Printed'] = True
+#         df.to_excel(EXCEL_FILE_PATH, index=False)
+#         return JsonResponse({'success': True})
+#     except FileNotFoundError:
+#         return JsonResponse({'error': 'Excel file not found'}, status=404)
+#     except Exception as e:
+#         return JsonResponse({'error': f'An error occurred: {str(e)}'}, status=500)
 
 @login_required
 @csrf_exempt
@@ -176,14 +174,16 @@ def process_second_stage(request):
         email = request.POST.get('email', '')
         logo = request.FILES.get('logo')
         fc_logo = request.FILES.get('fc_logo')
-        font_size = float(request.POST.get('font_size', 6))  # Changed default from 4.5 to 6
+        font_size = float(request.POST.get('font_size', 6))
         product_name = request.POST.get('product_name', 'WaveTrack X1')
 
-        logger.debug(f"Excel file path: {EXCEL_FILE_PATH}")
-        logger.debug(f"Excel file exists: {os.path.exists(EXCEL_FILE_PATH)}")
+        # Get Excel file path from configuration
+        excel_path = ExcelConfiguration.get_excel_path()
+        logger.debug(f"Excel file path: {excel_path}")
+        logger.debug(f"Excel file exists: {os.path.exists(excel_path)}")
 
         # Read the Excel file
-        df = pd.read_excel(EXCEL_FILE_PATH, dtype={
+        df = pd.read_excel(excel_path, dtype={
             'barcode_number': str, 
             'sr_number': str, 
             'CELL_Info.imei': str
@@ -435,8 +435,11 @@ def preview_label(request, label_id):
         if label.stage == 'first':
             label_content, label_pdf_base64 = generate_first_stage_label(label.barcode, label.custom_text)
         else:
+            # Get Excel file path from configuration
+            excel_path = ExcelConfiguration.get_excel_path()
+            
             # For second stage, we need to fetch data from Excel
-            df = pd.read_excel(EXCEL_FILE_PATH, dtype={
+            df = pd.read_excel(excel_path, dtype={
                 'barcode_number': str, 
                 'sr_number': str, 
                 'CELL_Info.imei': str
@@ -487,8 +490,11 @@ def reprint_label(request, label_id):
         if label.stage == 'first':
             label_content, label_pdf_base64 = generate_first_stage_label(label.barcode)
         else:
+            # Get Excel file path from configuration
+            excel_path = ExcelConfiguration.get_excel_path()
+            
             # For second stage, we need to fetch data from Excel
-            df = pd.read_excel(EXCEL_FILE_PATH, dtype={
+            df = pd.read_excel(excel_path, dtype={
                 'barcode_number': str, 
                 'sr_number': str, 
                 'CELL_Info.imei': str
