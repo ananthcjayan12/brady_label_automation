@@ -403,7 +403,7 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
         
         # Draw FC logo (adjusted position)
         c.drawImage(fc_logo_path, 100*mm - right_margin - 20*mm, content_start_y+1.5*mm, 
-                   width=5*mm, height=5*mm, mask='auto')
+                   width=6*mm, height=6*mm, mask='auto')
         
         if fc_logo:
             os.remove(fc_logo_path)
@@ -422,7 +422,7 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
         
         # Draw BIN logo
         c.drawImage(bin_logo_path, 100*mm - right_margin - 12*mm, content_start_y+1.5*mm, 
-                   width=5*mm, height=5*mm, mask='auto')
+                   width=6*mm, height=6*mm, mask='auto')
         
         if bin_logo:
             os.remove(bin_logo_path)
