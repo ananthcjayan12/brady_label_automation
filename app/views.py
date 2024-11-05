@@ -314,15 +314,22 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
     # Create the PDF object, using BytesIO as its "file."
     c = canvas.Canvas(buffer, pagesize=(100*mm, 25*mm))
     
-    # Add padding to content area
-    padding = 1.5*mm
+    # Add padding and border margins
+    left_margin = 6*mm  # 6mm from left
+    right_margin = 6*mm  # 6mm from right
+    top_margin = 1*mm   # 1mm from top
+    bottom_margin = 1*mm  # 1mm from bottom
     
-    # Draw border with rounded corners
-    c.roundRect(0.5*mm, 0.5*mm, 99*mm, 24*mm, radius=1*mm)
+    # Calculate border dimensions
+    border_width = 100*mm - (left_margin + right_margin)  # Total width minus margins
+    border_height = 25*mm - (top_margin + bottom_margin)  # Total height minus margins
     
-    # Calculate available space with padding
-    content_start_x = padding + 0.5*mm
-    content_start_y = padding + 0.5*mm
+    # Draw border with rounded corners at specified position
+    c.roundRect(left_margin, bottom_margin, border_width, border_height, radius=1*mm)
+    
+    # Calculate content area starting points
+    content_start_x = left_margin + 3*mm  # Add some padding inside border
+    content_start_y = bottom_margin - 0.5*mm  # Add some padding inside border
     
     # Handle WaveInnova logo
     try:
@@ -334,59 +341,52 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
         else:
             logo_path = os.path.join(settings.STATIC_ROOT, 'img', 'default_logo.jpg')
         
-        # Draw logo with padding (top position)
-        c.drawImage(logo_path, content_start_x + 5*mm, content_start_y + 14*mm, 
-                   width=20*mm, height=10*mm, preserveAspectRatio=True)
-        
+        # Draw logo with adjusted position
+        c.drawImage(logo_path, content_start_x, content_start_y + 16*mm, 
+                   width=22*mm, height=5*mm, preserveAspectRatio=True)
+
         if logo:
             os.remove(logo_path)
     except Exception as e:
         logger.error(f"Error processing logo: {str(e)}")
 
     # Draw product name (WaveTrac X1) in bold and large below the logo
-    c.setFont("ArialBold", 8)  # Larger font size for product name
-    text_width = c.stringWidth(product_name, "ArialBold", 8)
-    text_x = content_start_x + 12*mm + (12*mm - text_width) / 2
-    c.drawString(text_x, content_start_y + 12*mm, product_name)  # Moved down
+    c.setFont("ArialBold", 10)
+    text_width = c.stringWidth(product_name, "ArialBold")
+    text_x = content_start_x 
+    c.drawString(text_x, content_start_y + 13*mm, product_name)
 
-    # Draw text elements with padding (all moved down)
-    text_start_x = content_start_x + 8*mm
+    # Draw text elements with adjusted positions
+    text_start_x = content_start_x 
     
-    # Model (moved down)
+    # Model
     c.setFont("Arial", font_size)
     c.drawString(text_start_x, content_start_y + 9*mm, "Model: ")
-    c.setFont("Arial", font_size)
     c.drawString(text_start_x + c.stringWidth("Model: ", "Arial", font_size), 
                 content_start_y + 9*mm, model)
 
-    # FCC ID (moved down)
-    c.setFont("Arial", font_size)
+    # FCC ID
     c.drawString(text_start_x, content_start_y + 6*mm, "FCC ID: ")
-    c.setFont("Arial", font_size)
     c.drawString(text_start_x + c.stringWidth("FCC ID: ", "Arial", font_size), 
                 content_start_y + 6*mm, fcc_id)
 
-    # IMEI (moved down)
-    c.setFont("Arial", font_size)
+    # IMEI
     c.drawString(text_start_x, content_start_y + 3*mm, "IMEI: ")
-    c.setFont("Arial", font_size)
     c.drawString(text_start_x + c.stringWidth("IMEI: ", "Arial", font_size), 
                 content_start_y + 3*mm, imei_number)
 
     # SN and Barcode (right side elements)
-    barcode_start_x = content_start_x + 35*mm
-    c.setFont("Arial", font_size)
-    c.drawString(barcode_start_x + 7*mm, content_start_y + 20*mm, "SN: ")
-    c.setFont("Arial", font_size)
+    barcode_start_x = content_start_x + 27*mm
+    c.drawString(barcode_start_x + 7*mm, content_start_y + 19*mm, "SN: ")
     c.drawString(barcode_start_x + 7*mm + c.stringWidth("SN: ", "Arial", font_size), 
-                content_start_y + 20*mm, serial_number)
+                content_start_y + 19*mm, serial_number)
     
     # Generate and draw the barcode
-    barcode = code128.Code128(serial_number, barWidth=0.26*mm, barHeight=9*mm)
+    barcode = code128.Code128(serial_number, barWidth=0.21*mm, barHeight=9*mm)
     barcode.drawOn(c, barcode_start_x, content_start_y + 8*mm)
     
     # Draw the email
-    c.drawString(barcode_start_x + 7*mm, content_start_y + 5*mm, email)
+    c.drawString(barcode_start_x + 7*mm, content_start_y + 3*mm, email)
     
     # Handle FC logo
     try:
@@ -398,7 +398,8 @@ def generate_second_stage_label(serial_number, imei_number, model, fcc_id, email
         else:
             fc_logo_path = os.path.join(settings.STATIC_ROOT, 'img', 'default_fc_logo.png')
         
-        c.drawImage(fc_logo_path, 99*mm - padding - 8*mm, content_start_y + 2*mm, 
+        # Draw FC logo with adjusted position
+        c.drawImage(fc_logo_path, 100*mm - right_margin - 14*mm, content_start_y+1.5*mm , 
                    width=6*mm, height=6*mm)
         
         if fc_logo:
