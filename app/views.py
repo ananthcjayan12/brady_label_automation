@@ -170,7 +170,19 @@ def process_barcode(request):
 def process_first_stage(request):
     barcode = request.POST.get('barcode', '')
     custom_text = request.POST.get('custom_text', '')
+    force_proceed = request.POST.get('force_proceed', 'false').lower() == 'true'
+
     try:
+        # Check if label exists
+        existing_label = Label.objects.filter(barcode=barcode, stage='first').first()
+        if existing_label and not force_proceed:
+            return {
+                'success': False,
+                'error': 'duplicate',
+                'message': f'This barcode already exists in First Stage (created at {existing_label.created_at.strftime("%Y-%m-%d %H:%M")})',
+                'barcode': barcode
+            }
+
         label, created = Label.objects.get_or_create(
             barcode=barcode,
             defaults={'stage': 'first', 'custom_text': custom_text}
@@ -178,6 +190,7 @@ def process_first_stage(request):
         if not created:
             label.custom_text = custom_text
             label.save()
+
         label_content, label_pdf_base64 = generate_first_stage_label(barcode, custom_text)
         return {
             'success': True,
@@ -187,16 +200,28 @@ def process_first_stage(request):
             'barcode': barcode,
             'custom_text': custom_text
         }
-    except IntegrityError:
+    except Exception as e:
         return {
             'success': False,
-            'error': 'A label with this barcode already exists',
+            'error': str(e),
             'barcode': barcode
         }
 
 def process_second_stage(request):
     try:
         barcode = request.POST.get('barcode', '')
+        force_proceed = request.POST.get('force_proceed', 'false').lower() == 'true'
+
+        # Check if label exists
+        existing_label = Label.objects.filter(barcode=barcode, stage='second').first()
+        if existing_label and not force_proceed:
+            return {
+                'success': False,
+                'error': 'duplicate',
+                'message': f'This barcode already exists in Second Stage (created at {existing_label.created_at.strftime("%Y-%m-%d %H:%M")})',
+                'barcode': barcode
+            }
+
         model = request.POST.get('model', '')
         fcc_id = request.POST.get('fcc_id', '')
         email = request.POST.get('email', '')

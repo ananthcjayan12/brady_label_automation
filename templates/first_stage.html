@@ -91,16 +91,10 @@
             $('#custom-text').val('WAVETRAC-X1 REV 2.3');
         }
 
-        $('#barcode-form').submit(function(e) {
-            e.preventDefault();
-            var formData = new FormData(this);
-            
-            // Ensure custom text is included even if not modified
-            if (!formData.get('custom_text')) {
-                formData.set('custom_text', 'WAVETRAC-X1 REV 2.3');
+        function submitForm(formData, forceProceed = false) {
+            if (forceProceed) {
+                formData.append('force_proceed', 'true');
             }
-            
-            formData.append('stage', 'first-stage');
 
             $.ajax({
                 url: '/process-barcode/',
@@ -118,6 +112,10 @@
                         // Show PDF preview
                         $('#labelPreviewEmbed').attr('src', generatedPdfData);
                         $('#labelPreviewModal').removeClass('hidden');
+                    } else if (data.error === 'duplicate') {
+                        if (confirm(data.message + '\n\nDo you want to proceed anyway?')) {
+                            submitForm(formData, true);
+                        }
                     } else {
                         alert('Error generating label: ' + data.error);
                     }
@@ -126,6 +124,19 @@
                     alert('An error occurred while processing the request.');
                 }
             });
+        }
+
+        $('#barcode-form').submit(function(e) {
+            e.preventDefault();
+            var formData = new FormData(this);
+            
+            // Ensure custom text is included even if not modified
+            if (!formData.get('custom_text')) {
+                formData.set('custom_text', 'WAVETRAC-X1 REV 2.3');
+            }
+            
+            formData.append('stage', 'first-stage');
+            submitForm(formData);
         });
 
         $('#print-btn').click(function() {
