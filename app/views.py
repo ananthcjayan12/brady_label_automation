@@ -33,6 +33,8 @@ from django.urls import reverse_lazy
 from django.views.generic.edit import CreateView
 from django.views.decorators.csrf import csrf_exempt
 import logging
+from django.core.paginator import Paginator
+from django.db.models import Q
 
 logger = logging.getLogger(__name__)
 
@@ -69,12 +71,38 @@ class DashboardView(TemplateView):
         context['first_stage_labels'] = Label.objects.filter(stage='first').count()
         context['second_stage_labels'] = Label.objects.filter(stage='second').count()
 
-        context['labels_by_day'] = Label.objects.extra(
+        # Get search query and stage filter
+        search_query = self.request.GET.get('search', '')
+        stage_filter = self.request.GET.get('stage', '')
+        
+        # Get all labels with filters
+        labels = Label.objects.all()
+        
+        # Apply stage filter if selected
+        if stage_filter:
+            labels = labels.filter(stage=stage_filter)
+
+        # Apply search filter if provided
+        if search_query:
+            labels = labels.filter(
+                Q(barcode__icontains=search_query) |
+                Q(serial_number__icontains=search_query) |
+                Q(imei_number__icontains=search_query)
+            )
+
+        # Get labels by day
+        context['labels_by_day'] = labels.extra(
             select={'day': 'date(created_at)'}
         ).values('day').annotate(count=Count('id')).order_by('-day')[:7]
 
-        context['recent_labels'] = Label.objects.order_by('-created_at')[:10]
-
+        # Pagination
+        page = self.request.GET.get('page', 1)
+        paginator = Paginator(labels, 10)  # Show 10 labels per page
+        labels_page = paginator.get_page(page)
+        
+        context['labels'] = labels_page
+        context['search_query'] = search_query
+        context['stage_filter'] = stage_filter
         return context
 
 # def excel_lookup(request):
